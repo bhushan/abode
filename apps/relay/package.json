@@ -1,0 +1,21 @@
+{
+  "name": "@abode/relay",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Abode room relay: Cloudflare Worker + Durable Object",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.8",
+    "wrangler": "^4.124.0"
+  }
+}

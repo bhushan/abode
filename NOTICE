@@ -1,0 +1,28 @@
+Watchbear
+Copyright 2026 Halit Sever
+
+This product includes software developed by Halit Sever.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+---
+
+Telesync
+Copyright 2026 Telesync contributors
+
+This product is a derivative work of Watchbear (https://github.com/halitsever/watchbear),
+licensed under the Apache License, Version 2.0.
+
+Modifications made to the original work:
+  - Removed the Google OAuth sign-in requirement and all associated auth code,
+    so the product requires no accounts.
+  - Replaced the NestJS + Socket.IO + TypeORM/Postgres room server with a
+    Cloudflare Worker + Durable Object relay over plain WebSocket.
+  - Refactored the single-file content script into a platform adapter layer.
+  - Added a host-only playback control lock.
+  - Added clock-offset estimation and soft drift correction to playback sync.
+  - Redesigned the user interface and rebranded from Watchbear to Telesync.

@@ -1,0 +1,46 @@
+{
+  "name": "@abode/extension",
+  "private": true,
+  "version": "0.4.4",
+  "type": "module",
+  "description": "Abode browser extension",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build --mode production",
+    "build:test": "vite build --mode test",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pretest:e2e": "vite build --mode test --outDir dist-test",
+    "test:e2e": "playwright test",
+    "e2e:manual": "vite build --mode development && node e2e/manual.mjs",
+    "test:live": "playwright test -c pw-live.config.ts"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.6.1",
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/nunito": "^5.3.0",
+    "@iconify-json/lucide": "^1.2.111",
+    "@playwright/test": "^1.49.1",
+    "@svgr/core": "^8.1.0",
+    "@svgr/plugin-jsx": "^8.1.0",
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/chrome": "^0.1.43",
+    "@types/node": "^22.19.21",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "tailwindcss": "^4.3.1",
+    "typescript": "^6.0.3",
+    "unplugin-icons": "^23.0.1",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
+  }
+}

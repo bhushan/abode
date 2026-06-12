@@ -1,0 +1,115 @@
+.ab-reactions {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147483646;
+  overflow: hidden;
+}
+
+.ab-reaction {
+  position: fixed;
+  font-size: 56px;
+  line-height: 1;
+  pointer-events: none;
+  will-change: transform, opacity;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.45));
+  animation: ab-react-float 2.6s ease-out forwards;
+}
+
+@keyframes ab-react-float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.4) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -16px) scale(1.15) rotate(-6deg);
+  }
+  55% {
+    transform: translate(calc(-50% + var(--ab-drift, 0px) * 0.6), -130px) scale(1.05) rotate(6deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--ab-drift, 0px)), -240px) scale(1) rotate(-3deg);
+  }
+}
+
+/* Fifteen hearts. The one deliberately loud moment in the whole product. */
+.ab-love {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2147483647;
+  overflow: hidden;
+}
+
+.ab-love-word {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 90vw;
+  text-align: center;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(28px, 6.5vw, 76px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #f5f1e9;
+  text-shadow: 0 6px 30px rgba(0, 0, 0, 0.65);
+  animation: ab-love-in 4.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.ab-confetto {
+  position: absolute;
+  top: -12vh;
+  width: 9px;
+  height: 14px;
+  border-radius: 2px;
+  will-change: transform, opacity;
+  animation-name: ab-confetti-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes ab-love-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.72);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+  24% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  82% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+}
+
+@keyframes ab-confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--ab-sway, 0px), 118vh) rotate(var(--ab-spin, 360deg));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ab-love-word {
+    animation: none;
+  }
+  .ab-confetto {
+    display: none;
+  }
+}
