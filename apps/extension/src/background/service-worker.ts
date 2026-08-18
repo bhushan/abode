@@ -1,5 +1,5 @@
 import { STORAGE_KEYS, isValidCode } from '@/lib/room';
-import { openPanel } from '@/lib/panel';
+import { ensurePanel, tryNativePanel } from '@/lib/panel';
 import { PANEL_PORT_NAME } from '@/lib/panelPort';
 import { createPanelRegistry } from './panel-registry';
 import { chromeSiteAccess, syncSiteAccess } from './site-access';
@@ -34,6 +34,13 @@ chrome.runtime.onMessage.addListener((msg: PopupMessage | ContentMessage, sender
     return;
   }
 
+  // The popup asked for a panel and then closed itself, taking every unfinished
+  // promise with it. Finishing the job here is the only place it can be finished.
+  if (msg.type === 'WB_ENSURE_PANEL') {
+    void ensurePanel(msg.tabId);
+    return;
+  }
+
   if (msg.type === 'WB_START_ROOM' || msg.type === 'WB_JOIN_ROOM') {
     const { code, tabId } = msg;
     // the anchor tab's video is what the room watches; anchorTabId keeps that mark across reloads
@@ -63,12 +70,12 @@ chrome.runtime.onMessage.addListener((msg: PopupMessage | ContentMessage, sender
     } catch {
       url = null;
     }
-    // open the panel synchronously while the click's user gesture is still valid;
-    // any await first consumes the gesture and open() rejects. openPanel rather
-    // than chrome.sidePanel directly, so a browser without a working side panel
-    // still gets one: reaching for the API bare threw here on Arc and took the
-    // rest of the join with it.
-    void openPanel(tabId);
+    // Native attempt first, while the click's user gesture is still valid: any
+    // await in front of it spends the gesture and open() rejects. Then the same
+    // check every other caller gets, inline rather than by message, because a
+    // worker does not receive its own runtime.sendMessage.
+    tryNativePanel(tabId);
+    void ensurePanel(tabId);
     joinInvite(tabId, msg.code, url);
     return;
   }

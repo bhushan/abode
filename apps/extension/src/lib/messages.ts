@@ -2,6 +2,9 @@ export type PopupMessage =
   | { type: 'WB_START_ROOM'; code: string; tabId: number }
   | { type: 'WB_JOIN_ROOM'; code: string; tabId: number }
   | { type: 'WB_LEAVE_ROOM'; tabId?: number }
+  // the popup can only make the synchronous native attempt before it closes, so
+  // the worker is asked to see it through and fall back if nothing opened
+  | { type: 'WB_ENSURE_PANEL'; tabId: number }
   // runs the Google OAuth flow in the background so it survives the popup closing
   | { type: 'WB_LOGIN' };
 
