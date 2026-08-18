@@ -1,4 +1,5 @@
 import { sendToBackground } from './messages';
+import { STORAGE_KEYS } from './room';
 
 export const PANEL_WINDOW = { width: 400, height: 760 } as const;
 
@@ -77,14 +78,25 @@ async function nativePanelUp(sleep: Sleep): Promise<boolean> {
  * Nothing here needs a user gesture, which is why running it late is safe.
  */
 export async function ensurePanel(tabId: number, sleep: Sleep = realSleep): Promise<PanelSurface> {
-  if (await nativePanelUp(sleep)) return 'sidepanel';
+  // where the panel ended up, so a page that navigates can be given it back. A
+  // native panel and a detached window both outlive the document and need no help.
+  const remember = (tab: number | null) =>
+    chrome.storage.local.set({ [STORAGE_KEYS.panelTabId]: tab }).catch(() => undefined);
+
+  if (await nativePanelUp(sleep)) {
+    void remember(null);
+    return 'sidepanel';
+  }
 
   // Arc either ships no side panel or ships one that opens nothing, and has said
   // it will not add the API. An extension iframe is the honest answer: it is an
   // extension document, so the relay socket behaves as it does in a real panel.
   try {
     const hosted: unknown = await chrome.tabs.sendMessage(tabId, { type: 'OPEN_PANEL' });
-    if (hosted === true) return 'inpage';
+    if (hosted === true) {
+      void remember(tabId);
+      return 'inpage';
+    }
   } catch {
     // no content script on this page (a store page, say); fall through to a window
   }
@@ -97,8 +109,45 @@ export async function ensurePanel(tabId: number, sleep: Sleep = realSleep): Prom
       width: PANEL_WINDOW.width,
       height: PANEL_WINDOW.height,
     });
+    void remember(null);
     return 'window';
   } catch {
     return 'none';
   }
+}
+
+/**
+ * Put an in-page panel back after its document was replaced.
+ *
+ * A panel hosted in the page dies with the page, and it is where the room's own
+ * socket lives, so without this a reload or a click through to the next episode
+ * would drop somebody out of the member list and out of chat while leaving their
+ * video, confusingly, still in sync.
+ *
+ * Scoped to the one tab that was hosting it. Every tab restoring a panel would
+ * mean every tab holding a socket, and one person would fill the room.
+ */
+export async function restorePanel(tabId: number): Promise<boolean> {
+  const d = await chrome.storage.local.get([STORAGE_KEYS.inRoom, STORAGE_KEYS.panelTabId]);
+  if (!d[STORAGE_KEYS.inRoom] || d[STORAGE_KEYS.panelTabId] !== tabId) return false;
+
+  try {
+    return (await chrome.tabs.sendMessage(tabId, { type: 'OPEN_PANEL' })) === true;
+  } catch {
+    // the content script is not up yet, or not allowed on this page
+    return false;
+  }
+}
+
+/**
+ * Does a dropped panel port mean the room is over?
+ *
+ * Only when the browser owned the panel. A panel hosted inside the page drops its
+ * port on every navigation, and reading that as a close ended the room under
+ * anyone who clicked through to the next episode. There it ends on an explicit
+ * close instead, or when the tab holding it goes away.
+ */
+export async function panelDropEndsRoom(): Promise<boolean> {
+  const d = await chrome.storage.local.get([STORAGE_KEYS.inRoom, STORAGE_KEYS.panelTabId]);
+  return Boolean(d[STORAGE_KEYS.inRoom]) && d[STORAGE_KEYS.panelTabId] == null;
 }

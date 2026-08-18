@@ -92,6 +92,10 @@ export function runRoom(): void {
     }
   });
 
+  // A panel hosted in this page went with the last document, and the room's socket
+  // lives in it, so ask now that there is a listener to answer with.
+  void chrome.runtime.sendMessage({ type: 'WB_RESTORE_PANEL' }).catch(() => undefined);
+
   armFromStorage();
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && (STORAGE_KEYS.inRoom in changes || STORAGE_KEYS.roomCode in changes)) {

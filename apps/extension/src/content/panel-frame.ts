@@ -79,7 +79,13 @@ function build(): HTMLElement {
     'cursor:pointer',
     'padding:0',
   ].join(';');
-  close.addEventListener('click', () => hidePanel());
+  // The browser closes a native panel and the dropped port says so. Nothing
+  // watches this one, and its port drops on every navigation too, so a close has
+  // to be stated rather than inferred.
+  close.addEventListener('click', () => {
+    hidePanel();
+    void chrome.runtime.sendMessage({ type: 'WB_LEAVE_ROOM' }).catch(() => undefined);
+  });
 
   shadow.append(frame, close);
   return host;

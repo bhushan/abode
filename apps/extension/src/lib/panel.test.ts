@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ensurePanel, PANEL_WINDOW, requestPanel } from './panel';
+import { ensurePanel, PANEL_WINDOW, panelDropEndsRoom, requestPanel, restorePanel } from './panel';
 
 /**
  * The room's socket lives in the panel, so a browser that cannot open one cannot
@@ -31,6 +31,7 @@ function stubChrome({ sidePanel, inPage = false, contexts = [0] }: Stub) {
     inPage === 'unreachable' ? Promise.reject(new Error('no receiving end')) : Promise.resolve(inPage),
   );
   const toWorker = vi.fn(() => Promise.resolve());
+  const set = vi.fn(() => Promise.resolve());
   const seen = [...contexts];
   const getContexts = vi.fn(() => {
     const n = seen.length > 1 ? (seen.shift() ?? 0) : (seen[0] ?? 0);
@@ -40,6 +41,7 @@ function stubChrome({ sidePanel, inPage = false, contexts = [0] }: Stub) {
     sidePanel,
     tabs: { sendMessage },
     windows: { create },
+    storage: { local: { get: () => Promise.resolve({}), set } },
     runtime: {
       sendMessage: toWorker,
       getContexts,
@@ -47,7 +49,7 @@ function stubChrome({ sidePanel, inPage = false, contexts = [0] }: Stub) {
       getManifest: () => ({ side_panel: { default_path: 'src/sidepanel/index.html' } }),
     },
   });
-  return { create, sendMessage, toWorker, getContexts };
+  return { create, sendMessage, toWorker, getContexts, set };
 }
 
 describe('requestPanel', () => {
@@ -151,6 +153,7 @@ describe('ensurePanel', () => {
       tabs: { sendMessage: vi.fn() },
       windows: { create: vi.fn() },
       runtime: { getURL: (p: string) => p, getManifest: () => ({}) },
+      storage: { local: { get: () => Promise.resolve({}), set: () => Promise.resolve() } },
     });
 
     await expect(ensurePanel(7, nowait)).resolves.toBe('sidepanel');
@@ -165,8 +168,124 @@ describe('ensurePanel', () => {
         getURL: (p: string) => p,
         getManifest: () => ({ side_panel: { default_path: 'src/sidepanel/index.html' } }),
       },
+      storage: { local: { get: () => Promise.resolve({}), set: () => Promise.resolve() } },
     });
 
     await expect(ensurePanel(7, nowait)).resolves.toBe('none');
+  });
+});
+
+/**
+ * A native side panel belongs to the browser window and outlives whatever the
+ * page does. One hosted inside the page dies with the document, so a reload or a
+ * click through to the next episode would leave someone in a room with no panel,
+ * and the panel is where the room's own socket lives: they would vanish from the
+ * member list and stop receiving chat while still, confusingly, staying in sync.
+ */
+describe('restorePanel', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  function stubStorage(store: Record<string, unknown>) {
+    const sendMessage = vi.fn(() => Promise.resolve(true));
+    const set = vi.fn((patch: Record<string, unknown>) => {
+      Object.assign(store, patch);
+      return Promise.resolve();
+    });
+    vi.stubGlobal('chrome', {
+      tabs: { sendMessage },
+      storage: { local: { get: (keys: string[]) => Promise.resolve(Object.fromEntries(keys.map((k) => [k, store[k]]))), set } },
+    });
+    return { sendMessage, set };
+  }
+
+  it('puts the panel back in the tab that was hosting it', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: true, ab_panelTabId: 7 });
+
+    await expect(restorePanel(7)).resolves.toBe(true);
+    expect(sendMessage).toHaveBeenCalledWith(7, { type: 'OPEN_PANEL' });
+  });
+
+  it('leaves other tabs alone, or every tab would open its own panel and its own socket', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: true, ab_panelTabId: 7 });
+
+    await expect(restorePanel(9)).resolves.toBe(false);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does nothing once the room is over', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: false, ab_panelTabId: 7 });
+
+    await expect(restorePanel(7)).resolves.toBe(false);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('does nothing on a browser whose panel was never in the page', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: true });
+
+    await expect(restorePanel(7)).resolves.toBe(false);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('survives a content script that is not there to answer', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: true, ab_panelTabId: 7 });
+    sendMessage.mockImplementation(() => Promise.reject(new Error('no receiving end')));
+
+    await expect(restorePanel(7)).resolves.toBe(false);
+  });
+});
+
+describe('ensurePanel remembers where the panel went', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it('records the tab when the panel had to go into the page', async () => {
+    const { set } = stubChrome({ contexts: [0], inPage: true });
+
+    await expect(ensurePanel(7, nowait)).resolves.toBe('inpage');
+    expect(set).toHaveBeenCalledWith({ ab_panelTabId: 7 });
+  });
+
+  it('records nothing when the browser opened a real one', async () => {
+    const { set } = stubChrome({ contexts: [1] });
+
+    await expect(ensurePanel(7, nowait)).resolves.toBe('sidepanel');
+    expect(set).toHaveBeenCalledWith({ ab_panelTabId: null });
+  });
+
+  it('records nothing when it ended up in a window of its own', async () => {
+    const { set } = stubChrome({ contexts: [0], inPage: false });
+
+    await expect(ensurePanel(7, nowait)).resolves.toBe('window');
+    expect(set).toHaveBeenCalledWith({ ab_panelTabId: null });
+  });
+});
+
+/**
+ * A dropped panel port is how a closed panel announces itself, and closing the
+ * panel means leaving the room. That inference only holds for a panel the browser
+ * owns. One hosted in the page drops its port every time the page navigates, so
+ * reading that as "closed" ended the room under anyone who clicked through to the
+ * next episode.
+ */
+describe('panelDropEndsRoom', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  const store = (s: Record<string, unknown>) =>
+    vi.stubGlobal('chrome', {
+      storage: { local: { get: (keys: string[]) => Promise.resolve(Object.fromEntries(keys.map((k) => [k, s[k]]))) } },
+    });
+
+  it('ends the room when the browser owned the panel', async () => {
+    store({ ab_inRoom: true, ab_panelTabId: null });
+    await expect(panelDropEndsRoom()).resolves.toBe(true);
+  });
+
+  it('does not end the room when the panel lives in a page that just navigated', async () => {
+    store({ ab_inRoom: true, ab_panelTabId: 7 });
+    await expect(panelDropEndsRoom()).resolves.toBe(false);
+  });
+
+  it('has nothing to end when there is no room', async () => {
+    store({ ab_inRoom: false, ab_panelTabId: null });
+    await expect(panelDropEndsRoom()).resolves.toBe(false);
   });
 });

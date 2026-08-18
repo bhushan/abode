@@ -11,7 +11,11 @@ export type PopupMessage =
 export type ContentMessage =
   | { type: 'ROOM_STATE'; inRoom: boolean; memberCount: number }
   // fired from the landing page join click; the background opens the side panel, joins, then navigates
-  | { type: 'WB_JOIN_INVITE'; code: string; url: string };
+  | { type: 'WB_JOIN_INVITE'; code: string; url: string }
+  // a fresh document asking whether it was the one hosting the panel. Asked by
+  // the page rather than pushed by the worker: only the page knows when its own
+  // listener is up, and a push on tabs.onUpdated arrives before that.
+  | { type: 'WB_RESTORE_PANEL' };
 
 export type TabMessage =
   | { type: 'START_ROOM'; code: string; anchor: boolean }

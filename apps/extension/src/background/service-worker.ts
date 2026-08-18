@@ -1,12 +1,17 @@
 import { STORAGE_KEYS, isValidCode } from '@/lib/room';
-import { ensurePanel, tryNativePanel } from '@/lib/panel';
+import { ensurePanel, panelDropEndsRoom, restorePanel, tryNativePanel } from '@/lib/panel';
 import { PANEL_PORT_NAME } from '@/lib/panelPort';
 import { createPanelRegistry } from './panel-registry';
 import { chromeSiteAccess, syncSiteAccess } from './site-access';
 import type { PopupMessage, ContentMessage } from '@/lib/messages';
 
 function clearRoomState() {
-  void chrome.storage.local.set({ [STORAGE_KEYS.inRoom]: false, [STORAGE_KEYS.roomCode]: '', [STORAGE_KEYS.anchorTabId]: null });
+  void chrome.storage.local.set({
+    [STORAGE_KEYS.inRoom]: false,
+    [STORAGE_KEYS.roomCode]: '',
+    [STORAGE_KEYS.anchorTabId]: null,
+    [STORAGE_KEYS.panelTabId]: null,
+  });
 }
 
 // An invite link is the only credential there is, so following one joins straight
@@ -31,6 +36,15 @@ chrome.runtime.onMessage.addListener((msg: PopupMessage | ContentMessage, sender
     } else {
       void chrome.action.setBadgeText({ text: '', tabId });
     }
+    return;
+  }
+
+  // A page came back from a navigation and wants to know if it was hosting the
+  // panel. Only the worker knows which tab that was, and only it knows the tab id
+  // of whoever is asking.
+  if (msg.type === 'WB_RESTORE_PANEL') {
+    const tabId = sender.tab?.id;
+    if (tabId != null) void restorePanel(tabId);
     return;
   }
 
@@ -90,8 +104,16 @@ chrome.runtime.onMessage.addListener((msg: PopupMessage | ContentMessage, sender
 // closing the panel drops this port; treat it as leaving the room, but only once
 // the panel is really gone rather than mid-reopen
 const panels = createPanelRegistry(() => {
-  chrome.storage.local.get(STORAGE_KEYS.inRoom, (d) => {
-    if (d[STORAGE_KEYS.inRoom]) clearRoomState();
+  void panelDropEndsRoom().then((ends) => {
+    if (ends) clearRoomState();
+  });
+});
+
+// The in-page panel has no browser chrome to close it, so the room ends by an
+// explicit close or with the tab that was holding it.
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.local.get(STORAGE_KEYS.panelTabId, (d) => {
+    if (d[STORAGE_KEYS.panelTabId] === tabId) clearRoomState();
   });
 });
 

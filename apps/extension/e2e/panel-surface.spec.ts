@@ -104,3 +104,27 @@ test('chrome: a working side panel is left alone, with no second panel in the pa
     await u?.close();
   }
 });
+
+test('arc: the panel comes back after the page navigates out from under it', async () => {
+  let u: User | undefined;
+  try {
+    u = await launchUser();
+    const popup = await openPopup(u, { deadSidePanel: true });
+    await startRoom(u, popup);
+    await expect.poll(() => inRoom(u!), { timeout: 20_000 }).toBe(true);
+    await popup.close().catch(() => undefined);
+    await expect.poll(() => inPagePanels(u!), { timeout: 20_000 }).toBe(1);
+
+    // the next episode, a reload, anything that replaces the document: a native
+    // side panel belongs to the window and would not notice, and this one has to
+    // be put back or the person is in a room with no socket
+    await u.video.reload();
+    await u.video.waitForSelector('video');
+
+    await expect.poll(() => inPagePanels(u!), { timeout: 20_000 }).toBe(1);
+    const panel = u.video.frameLocator(`#${PANEL_HOST_ID} iframe`);
+    await expect(panel.getByLabel('Message the room')).toBeVisible({ timeout: 25_000 });
+  } finally {
+    await u?.close();
+  }
+});
