@@ -11,8 +11,8 @@ You may obtain a copy of the License at
 
 ---
 
-Telesync
-Copyright 2026 Telesync contributors
+Abode
+Copyright 2026 Abode contributors
 
 This product is a derivative work of Watchbear (https://github.com/halitsever/watchbear),
 licensed under the Apache License, Version 2.0.
@@ -25,4 +25,6 @@ Modifications made to the original work:
   - Refactored the single-file content script into a platform adapter layer.
   - Added a host-only playback control lock.
   - Added clock-offset estimation and soft drift correction to playback sync.
-  - Redesigned the user interface and rebranded from Watchbear to Telesync.
+  - Added per-address connection limiting and raised the invite code's entropy,
+    since with no accounts the link is the only credential.
+  - Redesigned the user interface and rebranded from Watchbear to Abode.

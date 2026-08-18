@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { formatTimecode } from '@/lib/timecode';
 import type { SyncState } from '@/lib/syncState';
 
@@ -16,7 +17,18 @@ const LOOK: Record<SyncState, { label: string; color: string }> = {
  * The inherited panel spent four stacked rows on a title, a code, a clock and a
  * now-playing label, and never once said whether you were actually in sync.
  */
-export function LockStrip({ state, at, title }: { state: SyncState; at?: number | null; title?: string }) {
+export function LockStrip({
+  state,
+  at,
+  title,
+  children,
+}: {
+  state: SyncState;
+  at?: number | null;
+  title?: string;
+  /** Room controls that belong on the instrument line, composed in by the panel. */
+  children?: ReactNode;
+}) {
   const look = LOOK[state];
   return (
     <div className="relative border-b border-ab-edge px-3.5 pb-2.5 pt-3">
@@ -35,6 +47,7 @@ export function LockStrip({ state, at, title }: { state: SyncState; at?: number 
         <span className="ml-auto font-mono text-[16px] font-medium tabular-nums tracking-[-.01em] text-ab-cream">
           {formatTimecode(at)}
         </span>
+        {children}
       </div>
       {title ? (
         <div className="mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] text-ab-faint" title={title}>

@@ -1,4 +1,4 @@
-// WebSocket transport for the Telesync relay.
+// WebSocket transport for the Abode relay.
 //
 // Replaces socket.io-client. Socket.IO was giving us reconnect, heartbeats and
 // framing for free; a plain WebSocket gives none of that, so those concerns live

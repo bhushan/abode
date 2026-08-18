@@ -2,11 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo, Mark } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
 import { LockStrip } from "@/components/LockStrip";
+import { ControlLock } from "@/components/ControlLock";
 import { syncStateOf } from "@/lib/syncState";
 import { useRoomState } from "@/hooks/useRoomState";
 import { useVideoState } from "@/hooks/useVideoState";
 import { getIdentity, tintOf, type Identity } from "@/lib/identity";
 import { linkify } from "@/lib/linkify";
+import { shouldOfferFollow } from "@/lib/follow";
+import { getActiveTab } from "@/lib/messages";
+import { getSeat } from "@/lib/seat";
 import { getServerUrl } from "@/lib/server";
 import { formatTimecode } from "@/lib/timecode";
 import { joinRoom, type ConnStatus, type RoomConnection, type VideoContentInfo } from "@/lib/socket";
@@ -23,6 +27,8 @@ export function SidePanel() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [content, setContent] = useState<VideoContentInfo | null>(null);
   const [typers, setTypers] = useState<Map<string, string>>(new Map());
+  const [locked, setLocked] = useState(false);
+  const [tabUrl, setTabUrl] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
   const conn = useRef<RoomConnection | null>(null);
@@ -38,6 +44,15 @@ export function SidePanel() {
     void getIdentity().then(setIdentity);
   }, []);
 
+  // The room can move on to the next episode without this tab. Polled rather
+  // than pushed, because a tab navigating is not an event the panel receives.
+  useEffect(() => {
+    const read = () => void getActiveTab().then((t) => setTabUrl(t?.url ?? null));
+    read();
+    const iv = setInterval(read, 2_000);
+    return () => clearInterval(iv);
+  }, []);
+
   const push = useCallback((m: Omit<Message, "id">) => {
     setMessages((prev) => [...prev, { ...m, id: nextId.current++ }].slice(-300));
   }, []);
@@ -48,10 +63,15 @@ export function SidePanel() {
     let connection: RoomConnection | undefined;
 
     void (async () => {
-      const serverUrl = await getServerUrl();
+      const [serverUrl, seat] = await Promise.all([getServerUrl(), getSeat()]);
       if (!live) return;
-      connection = joinRoom(serverUrl, roomCode, identity, {
+      connection = joinRoom(
+        serverUrl,
+        roomCode,
+        identity,
+        {
         onStatus: setStatus,
+        onLock: setLocked,
         onMembers: (list, selfId) => setMembers(list.map((m) => ({ ...m, you: m.id === selfId }))),
         onContent: setContent,
         onSystem: (text) => push({ type: "system", text, at: timeRef.current }),
@@ -72,7 +92,9 @@ export function SidePanel() {
             else next.delete(fromId);
             return next;
           }),
-      });
+        },
+        seat,
+      );
       conn.current = connection;
     })();
 
@@ -103,9 +125,27 @@ export function SidePanel() {
         className="pointer-events-none absolute inset-x-0 -top-10 h-48"
         style={{ background: "radial-gradient(60% 100% at 50% 0%, rgba(232,169,79,.13), transparent 72%)" }}
       />
-      <LockStrip state={syncStateOf(status)} at={videoTime} title={content?.title || undefined} />
+      <LockStrip state={syncStateOf(status)} at={videoTime} title={content?.title || undefined}>
+        <ControlLock
+          locked={locked}
+          canToggle={members.some((m) => m.you && m.host)}
+          hostName={members.find((m) => m.host)?.name}
+          onToggle={(next) => conn.current?.setLock(next)}
+        />
+      </LockStrip>
 
       <MemberRail members={members} />
+
+      {shouldOfferFollow(content, tabUrl) ? (
+        <FollowBanner
+          title={content!.title}
+          onFollow={() => {
+            void getActiveTab().then((t) => {
+              if (t?.id != null) void chrome.tabs.update(t.id, { url: content!.url });
+            });
+          }}
+        />
+      ) : null}
 
       <Feed messages={messages} tintFor={tintFor} />
 
@@ -158,6 +198,32 @@ export function SidePanel() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The room moved on and this tab did not.
+ *
+ * An offer rather than a navigation: moving somebody's tab out from under them
+ * loses their place, and two people are sometimes on different pages on purpose.
+ */
+function FollowBanner({ title, onFollow }: { title: string; onFollow: () => void }) {
+  return (
+    <div className="flex items-center gap-2 border-b border-ab-edge bg-ab-raised px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <div className="text-[10.5px] font-semibold uppercase tracking-[.09em] text-ab-faint">Room moved on</div>
+        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] text-ab-cream" title={title}>
+          {title}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onFollow}
+        className="shrink-0 rounded-lg bg-ab-lamp px-2.5 py-1.5 text-[12px] font-semibold text-ab-ink transition-all hover:brightness-105 active:scale-95"
+      >
+        Catch up
+      </button>
     </div>
   );
 }

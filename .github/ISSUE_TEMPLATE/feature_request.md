@@ -1,20 +1,16 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
+about: Something Abode should do and does not
 title: ''
-labels: ''
+labels: enhancement
 assignees: ''
-
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+**What are you trying to do that you cannot do now?**
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+**What would it look like if it worked?**
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
-
-**Additional context**
-Add any other context or screenshots about the feature request here.
+**Is this a platform request?**
+<!-- Adding a service is one small adapter file plus a fixture in the conformance
+     suite. If it is a platform, say which one and whether its player lives in an
+     iframe, if you happen to know. -->

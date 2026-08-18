@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { launchUser, videoFrame, videoPaused, setVideo, HOST_IFRAME_URL, type User } from './fixtures';
 
-const CODE = 'BEAR-IFRAME1';
+const CODE = 'ABODE-IFRAME1';
 
 const frameReady = (p: Awaited<ReturnType<typeof videoFrame>>) =>
   p.waitForFunction(() => (window as { __wbVideoReady?: boolean }).__wbVideoReady === true);

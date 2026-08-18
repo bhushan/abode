@@ -1,50 +1,54 @@
-# E2E tests
+# End-to-end and live checks
 
-Two isolated Chrome profiles (two "bears") load the built extension, join the same
-room through a real server instance, and assert that play/pause stays in sync.
+Three layers, in order of how much they prove.
 
-## Run
+## Playwright (`pnpm test:e2e`)
 
-```bash
-pnpm --filter @watchbear/extension test:e2e
-```
+Two isolated Chrome profiles load the built extension, join the same room, and
+drive a real video against a real Durable Object in workerd. This is where the
+things a fake cannot reach are proved: that a page is allowed to frame the
+panel, that a cross-origin player is reachable, that the host lock actually
+stops a guest's seek and puts them back.
 
-That command:
+It builds `dist-test` first, then starts a static video server on :5190 and
+`wrangler dev` on :3100.
 
-1. builds the extension in test mode (`vite build --mode test`, so it points at
-   `http://localhost:3100` via `.env.test`),
-2. starts a static server for the local test video page (`e2e/serve.mjs`),
-3. starts a fresh Watchbear server on port 3100 (plain http, no cert, test page
-   origin allow-listed via `CORS_ORIGINS`),
-4. launches two persistent Chromium contexts with the extension loaded and runs the spec.
+**Headed only.** Extensions do not load correctly under `headless: true` in this
+setup; a headless run reports failures that are not real.
 
-## Manual mode
+## Two browsers by hand (`pnpm e2e:manual`)
 
-To drive it by hand instead of asserting (run `pnpm cert` once first):
+Opens two windows side by side against the local relay, for the checks that are
+about how something looks rather than whether it happened: whether a correction
+is visible, whether the panel is comfortable in a dark room, whether fullscreen
+behaves. Needs `pnpm dev:relay` running.
 
-```bash
-pnpm --filter @watchbear/extension e2e:manual
-```
+## Live smoke checklist (per platform, by hand)
 
-This one command does everything: builds the extension in development mode
-(-> `https://localhost:3000`), serves the local test video page, **starts the
-dev server** on :3000 if one isn't already running (reuses it if it is), and opens
-two browsers (with `--ignore-certificate-errors` for the self-signed cert) that stay
-open. Click the Watchbear toolbar icon in browser A -> "Start a party", copy the code,
-paste it into browser B's Join field, then play/pause in either window. Ctrl+C closes
-everything (including the server it started).
+Fakes prove the contract. Only the real site proves the platform, so every
+adapter gets run through this once against a live session, and again whenever
+that platform starts misbehaving. Two accounts, two machines or two profiles.
 
-> Don't run the full `pnpm dev` / `npm run dev` alongside this. That also starts the
-> extension's vite HMR dev server, which keeps rewriting `dist` and fights with the
-> static build the two browsers load, so the loaded extension breaks. `e2e:manual`
-> already starts the server it needs.
+| | Netflix | Crunchyroll | plain HTML5 |
+| --- | --- | --- | --- |
+| Room starts from the popup, invite link opens on the other side | | | |
+| Play propagates | | | |
+| Pause propagates | | | |
+| Seek forward propagates | | | |
+| Seek back propagates | | | |
+| A throttled client closes the gap without a visible scrub | | | |
+| Episode change offers "Catch up" on the other side | | n/a | n/a |
+| Fullscreen: reactions and the panel still paint | | | |
+| Host lock stops a guest and snaps them back | | | |
+| Chat and reactions both ways | | | |
 
-## Notes
+Notes worth keeping when something fails:
 
-- Runs **headed** by default; you see both browsers.
-- The test video is a remote WebM (plays in Playwright's Chromium, which ships no
-  h264). If the network is blocked it falls back to a synthetic canvas stream, so the
-  suite still passes offline.
-- The room is set by writing `wb_inRoom`/`wb_roomCode` straight into extension storage
-  from the service worker, which is what the content script listens on. This skips the
-  popup UI on purpose so the test targets the sync path, not the form.
+- **Netflix** proves the player-API seek path. Writing `video.currentTime`
+  crashes its player, so a regression there looks like the tab dying, not like a
+  sync bug.
+- **Crunchyroll** proves the cross-frame path: its Vilos player is served from
+  `static.crunchyroll.com` inside an iframe, and it can change independently of
+  the main site. Re-probe its capabilities before assuming a break is ours.
+- **Plain HTML5** is the fallback adapter, and the only one that needs the
+  optional site permission granted first.

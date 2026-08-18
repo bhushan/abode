@@ -31,6 +31,7 @@ const handlers = () => ({
   onSystem: vi.fn(),
   onStatus: vi.fn(),
   onContent: vi.fn(),
+  onLock: vi.fn(),
 });
 
 beforeEach(() => {
@@ -209,5 +210,119 @@ describe('pingServer', () => {
   it('rejects an unreachable host rather than throwing', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('nope')));
     await expect(pingServer('https://r.test')).resolves.toBe(false);
+  });
+});
+
+/**
+ * The host lock is enforced by the relay, never by hiding the button. These
+ * cover the two halves the client is responsible for: presenting the seat that
+ * lets the relay recognise this browser, and reporting the state it is told.
+ */
+describe('control lock', () => {
+  it('presents the same seat on both of a person\'s sockets', () => {
+    joinRoom('https://r.test', 'ABODE-TEST01', identity, handlers(), 'seat-1');
+    latest().open();
+    expect(latest().frames[0]).toMatchObject({ ev: 'room:join', seat: 'seat-1' });
+
+    joinVideoChannel('https://r.test', 'ABODE-TEST01', {
+      anchor: true,
+      content: { key: 'k', url: 'https://x/1', title: 'One' },
+      name: 'Ada',
+      seat: 'seat-1',
+      onControl: vi.fn(),
+      onReaction: vi.fn(),
+    });
+    latest().open();
+    expect(latest().frames[0]).toMatchObject({ ev: 'video:subscribe', seat: 'seat-1' });
+  });
+
+  it('re-presents the seat after a reconnect, along with the rest of the primer', () => {
+    vi.useFakeTimers();
+    joinRoom('https://r.test', 'ABODE-TEST01', identity, handlers(), 'seat-1');
+    latest().open();
+    latest().close();
+    vi.advanceTimersByTime(30_000);
+    latest().open();
+    expect(latest().frames[0]).toMatchObject({ ev: 'room:join', seat: 'seat-1' });
+    vi.useRealTimers();
+  });
+
+  it('omits the seat entirely rather than sending null when there is none', () => {
+    joinRoom('https://r.test', 'ABODE-TEST01', identity, handlers());
+    latest().open();
+    expect(latest().frames[0]).toEqual({ ev: 'room:join', member: identity });
+  });
+
+  it('reports the lock state the relay announces', () => {
+    const h = handlers();
+    joinRoom('https://r.test', 'ABODE-TEST01', identity, h, 'seat-1');
+    latest().open();
+
+    latest().deliver({ ev: 'room:lock', locked: true });
+    expect(h.onLock).toHaveBeenCalledWith(true);
+
+    latest().deliver({ ev: 'room:lock', locked: false });
+    expect(h.onLock).toHaveBeenLastCalledWith(false);
+  });
+
+  it('asks for the lock without deciding whether it is allowed', () => {
+    const conn = joinRoom('https://r.test', 'ABODE-TEST01', identity, handlers(), 'seat-1');
+    latest().open();
+    conn.setLock(true);
+    expect(latest().frames.at(-1)).toEqual({ ev: 'room:lock', locked: true });
+  });
+});
+
+/**
+ * The video channel owns the room's clock, because it is the socket that
+ * carries playback and the only one that needs to know how far this machine is
+ * from the relay.
+ */
+describe('room clock over the video channel', () => {
+  const channel = (onControl = vi.fn()) =>
+    joinVideoChannel('https://r.test', 'ABODE-TEST01', {
+      anchor: true,
+      content: { key: 'k', url: 'https://x/1', title: 'One' },
+      name: 'Ada',
+      onControl,
+      onReaction: vi.fn(),
+    });
+
+  it('starts asking the relay for the time as soon as it connects', () => {
+    channel();
+    latest().open();
+    expect(latest().frames.some((f) => f.ev === 'time:ping')).toBe(true);
+  });
+
+  it('carries the relay stamp through to the caller, since a bare time is unusable', () => {
+    const onControl = vi.fn();
+    channel(onControl);
+    latest().open();
+
+    latest().deliver({ ev: 'video:control', time: 30, paused: false, rate: 1, at: 1_700_000_000_000 });
+    expect(onControl).toHaveBeenCalledWith({ time: 30, paused: false, rate: 1, at: 1_700_000_000_000 });
+  });
+
+  it('shifts its idea of now once the relay has answered', () => {
+    const ch = channel();
+    latest().open();
+    const ping = latest().frames.find((f) => f.ev === 'time:ping')!;
+
+    const before = ch.serverNow();
+    // reply as if the relay were an hour ahead of this machine
+    latest().deliver({ ev: 'time:pong', t: ping.t, s: (ping.t as number) + 3_600_000 });
+
+    expect(ch.serverNow() - before).toBeGreaterThan(3_500_000);
+  });
+
+  it('stops pinging a room it has left', () => {
+    vi.useFakeTimers();
+    const ch = channel();
+    latest().open();
+    ch.disconnect();
+    const sent = latest().frames.length;
+    vi.advanceTimersByTime(10 * 60_000);
+    expect(latest().frames.length).toBe(sent);
+    vi.useRealTimers();
   });
 });

@@ -1,6 +1,7 @@
 import { STORAGE_KEYS, isValidCode } from '@/lib/room';
 import { PANEL_PORT_NAME } from '@/lib/panelPort';
 import { createPanelRegistry } from './panel-registry';
+import { chromeSiteAccess, syncSiteAccess } from './site-access';
 import type { PopupMessage, ContentMessage } from '@/lib/messages';
 
 function clearRoomState() {
@@ -102,3 +103,20 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 // No onboarding tab on install. An identity is assigned the first time it is
 // read, and the popup lets you change it, so there is nothing to walk anyone
 // through before they can join a room.
+
+/**
+ * Sites outside the declared platform list run through an optional grant, so the
+ * registration has to be brought in line with the permission at every point the
+ * two could have diverged: a fresh install, a browser restart, and the moment
+ * somebody grants or revokes it in Chrome's own settings.
+ *
+ * The worker is evicted constantly and remembers nothing, which is why this is
+ * idempotent rather than event-sourced.
+ */
+const reconcileSiteAccess = () => void syncSiteAccess(chromeSiteAccess()).catch(() => undefined);
+
+chrome.runtime.onInstalled.addListener(reconcileSiteAccess);
+chrome.runtime.onStartup.addListener(reconcileSiteAccess);
+chrome.permissions.onAdded.addListener(reconcileSiteAccess);
+chrome.permissions.onRemoved.addListener(reconcileSiteAccess);
+reconcileSiteAccess();

@@ -1,232 +1,282 @@
-/* Shared design tokens and primitives for all Watchbear landing pages. */
-
+/*
+ * Abode: a lamplit room.
+ *
+ * Same tokens as the extension, for the same reason: the base is a warm
+ * plum-black rather than pure black, so it does not glare in a dark room and
+ * does not fight a film's own blacks. One warm accent carries the lamp. Sync
+ * state gets its own calm sage, so "are we together" never competes with a
+ * button for attention.
+ */
 :root {
-  /* surfaces */
-  --bg: #ffffff;
-  --bg-soft: #faf7f1;
-  --surface: #ffffff;
-  --surface-2: #f5f1e8;
-  --track: #e9e2d4;
+  --ink: #17141b;
+  --raised: #221d29;
+  --sunk: #110f15;
+  --edge: rgba(245, 241, 233, 0.09);
+  --edge-strong: rgba(245, 241, 233, 0.16);
 
-  /* lines and shadows */
-  --line: #e8e1d3;
-  --line-soft: #efe9dd;
-  --line-strong: #d8cfbc;
-  --shadow-sm: 0 1px 2px rgba(26, 20, 13, 0.05), 0 1px 6px rgba(26, 20, 13, 0.04);
-  --shadow-md: 0 4px 12px rgba(26, 20, 13, 0.06), 0 16px 40px rgba(26, 20, 13, 0.08);
+  --cream: #f5f1e9;
+  --dim: #a29aac;
+  --faint: #7d7688;
 
-  /* ink */
-  --ink: #1a140d;
-  --text: #1a140d;
-  --muted: #5c5142;
-  --faint: #7c7060;
+  --lamp: #e8a94f;
+  --sync: #86c79e;
+  --blue: #6ea8f0;
 
-  /* brand accent */
-  --accent: #f0a830;
-  --accent-hover: #e2991f;
-  --on-accent: #241704;
-  --accent-text: #9a6200;
-  --accent-tint: #fdf3e0;
+  --ui: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* the wordmark's rounded geometric, without reaching for a font CDN */
+  --brand: ui-rounded, 'SF Pro Rounded', 'Nunito', 'Avenir Next', system-ui, sans-serif;
+  --mono: ui-monospace, 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
 
-  /* status */
-  --online: #1e8e4e;
-  --danger: #c2513a;
-
-  --font-body: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
-  --r-btn: 9px;
-  --r-input: 8px;
-  --r-card: 14px;
+  --gap: clamp(56px, 9vw, 108px);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.6;
+  background: var(--ink);
+  color: var(--cream);
+  font: 16px/1.6 var(--ui);
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
-::selection {
-  background: var(--accent-tint);
-  color: var(--ink);
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-h1,
-h2,
-h3 {
-  font-family: var(--font-body);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  color: var(--ink);
-  margin: 0;
-}
-
-button,
-a,
-label,
-summary,
-[role="button"] {
-  cursor: pointer;
+/* one warm light source, above the room */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -20vh 0 auto 0;
+  height: 70vh;
+  pointer-events: none;
+  background: radial-gradient(58% 100% at 50% 0%, rgba(232, 169, 79, 0.13), transparent 72%);
 }
 
 .wrap {
-  max-width: 1080px;
+  position: relative;
+  max-width: 780px;
   margin: 0 auto;
-  padding: 0 28px;
+  padding: 0 24px;
 }
 
-/* buttons */
+a { color: var(--cream); }
+a:focus-visible,
+button:focus-visible { outline: 2px solid var(--lamp); outline-offset: 3px; border-radius: 4px; }
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  font-family: var(--font-body);
-  font-weight: 700;
-  border: none;
-  border-radius: var(--r-btn);
-  background: var(--accent);
-  color: var(--on-accent);
-  padding: 11px 20px;
-  font-size: 15px;
-  box-shadow: 0 1px 2px rgba(26, 20, 13, 0.1);
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
+/* ---- masthead ---------------------------------------------------------- */
 
-.btn:hover {
-  background: var(--accent-hover);
-}
-
-.btn.lg {
-  padding: 15px 28px;
-  font-size: 16px;
-  border-radius: 10px;
-}
-
-.btn.ghost {
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--line-strong);
-  box-shadow: none;
-}
-
-.btn.ghost:hover {
-  background: var(--surface-2);
-  border-color: var(--line-strong);
-}
-
-/* form fields */
-
-.field-input {
-  width: 100%;
-  font-family: var(--font-body);
-  font-size: 15px;
-  font-weight: 400;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-input);
-  padding: 11px 14px;
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.field-input::placeholder {
-  color: var(--faint);
-  font-weight: 400;
-}
-
-.field-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
-}
-
-/* footer */
-
-.foot-wrap {
-  border-top: 1px solid var(--line);
-  background: var(--bg-soft);
-}
-
-.foot {
+.masthead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
+  padding: 26px 0 0;
+}
+.masthead svg { width: 26px; height: 26px; }
+.wordmark {
+  font-family: var(--brand);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.015em;
+}
+.masthead nav {
+  margin-left: auto;
+  display: flex;
   gap: 18px;
-  flex-wrap: wrap;
-  padding: 34px 28px;
-  max-width: 1080px;
-  margin: 0 auto;
+  font-size: 13.5px;
+}
+.masthead nav a { color: var(--dim); text-decoration: none; }
+.masthead nav a:hover { color: var(--cream); }
+
+/* ---- hero -------------------------------------------------------------- */
+
+.hero { padding: clamp(48px, 9vw, 96px) 0 var(--gap); }
+
+h1 {
+  margin: 0;
+  font-size: clamp(38px, 7.4vw, 62px);
+  line-height: 1.03;
+  letter-spacing: -0.033em;
+  font-weight: 700;
+  max-width: 13ch;
+}
+.lede {
+  margin: 20px 0 0;
+  max-width: 46ch;
+  font-size: clamp(16.5px, 2.1vw, 19px);
+  line-height: 1.55;
+  color: var(--dim);
 }
 
-.foot-brand {
+/*
+ * The signature. Every watch-party product shows you a chat window; the thing
+ * that is actually hard is staying locked to one frame, and nothing else in
+ * this category ever shows you whether it is working. So that is the hero.
+ */
+.strip {
+  margin-top: 38px;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--raised), var(--sunk));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+  overflow: hidden;
+  max-width: 420px;
+}
+.strip-line {
   display: flex;
   align-items: center;
   gap: 11px;
+  padding: 15px 16px 13px;
+  border-bottom: 1px solid var(--edge);
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sync);
+  box-shadow: 0 0 0 4px rgba(134, 199, 158, 0.16);
+  flex: none;
+}
+.state { font-size: 12.5px; font-weight: 650; color: var(--sync); }
+.timecode {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.strip-title {
+  padding: 9px 16px 12px;
+  font-size: 12px;
+  color: var(--faint);
+  border-bottom: 1px solid var(--edge);
+}
+.strip-chat { padding: 10px 16px 15px; display: grid; gap: 7px; }
+.msg { display: flex; gap: 9px; font-size: 13px; align-items: baseline; }
+.msg .at {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+.msg .who { font-weight: 650; font-size: 12.5px; flex: none; }
+.msg.system { color: var(--faint); font-size: 11px; justify-content: center; }
+
+/* ---- sections ---------------------------------------------------------- */
+
+section { padding-bottom: var(--gap); }
+
+h2 {
+  margin: 0 0 20px;
+  font-size: clamp(21px, 3.2vw, 26px);
+  letter-spacing: -0.02em;
+  font-weight: 650;
 }
 
-.foot-brand .mk {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+p { margin: 0 0 16px; max-width: 62ch; color: var(--dim); }
+p strong { color: var(--cream); font-weight: 600; }
+
+.points { display: grid; gap: 2px; border-top: 1px solid var(--edge); }
+.point {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--edge);
+  display: grid;
+  grid-template-columns: minmax(0, 15ch) 1fr;
+  gap: 6px 28px;
+  align-items: baseline;
+}
+.point h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+}
+.point p { margin: 0; font-size: 14.5px; }
+
+@media (max-width: 560px) {
+  .point { grid-template-columns: 1fr; }
 }
 
-.foot-brand .mk svg {
-  display: block;
-}
-
-.foot .tag {
-  color: var(--muted);
-  font-weight: 500;
-  font-size: 14.5px;
-}
-
-.foot-links {
-  display: flex;
-  align-items: center;
-  gap: 26px;
-}
-
-.foot-links a {
-  color: var(--muted);
-  font-weight: 500;
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 16px; }
+.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 14px;
+  align-items: start;
+  color: var(--dim);
   font-size: 15px;
-  transition: color 0.15s ease;
+}
+.steps li::before {
+  content: counter(step);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--lamp);
+  border: 1px solid var(--edge-strong);
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  line-height: 1;
 }
 
-.foot-links a:hover {
-  color: var(--ink);
+code, .path {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--sunk);
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  padding: 1.5px 6px;
+  color: var(--cream);
 }
+
+pre {
+  background: var(--sunk);
+  border: 1px solid var(--edge);
+  border-radius: 11px;
+  padding: 15px 17px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--cream);
+}
+pre code { background: none; border: 0; padding: 0; }
+
+.cta {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 12px 20px;
+  border-radius: 11px;
+  background: var(--lamp);
+  color: var(--ink);
+  font-weight: 650;
+  font-size: 15px;
+  text-decoration: none;
+}
+.cta:hover { filter: brightness(1.06); }
+
+.sites { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.site {
+  border: 1px solid var(--edge-strong);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 13px;
+  color: var(--cream);
+}
+.site.pending { border-style: dashed; color: var(--faint); }
+
+footer {
+  border-top: 1px solid var(--edge);
+  padding: 26px 0 44px;
+  font-size: 13px;
+  color: var(--faint);
+}
+footer a { color: var(--dim); }
+footer p { color: var(--faint); font-size: 13px; }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
-
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
-    transition: none !important;
-  }
+  html { scroll-behavior: auto; }
+  * { animation: none !important; transition: none !important; }
 }

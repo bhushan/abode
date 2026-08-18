@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { launchUser, videoPaused, setVideo, VIDEO_URL, type User } from './fixtures';
 
 // must satisfy the server's code regex ^[A-Z]{2,8}-[A-Z0-9]{4,12}$
-const CODE = 'BEAR-TEST01';
+const CODE = 'ABODE-TEST01';
 
 test('play/pause stays in sync between two users', async () => {
   let a: User | undefined;

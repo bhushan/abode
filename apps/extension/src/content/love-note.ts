@@ -39,7 +39,9 @@ export function createLoveCounter(onLove: () => void, threshold = LOVE_THRESHOLD
  * storm.
  */
 export function showLoveNote(host: Element): void {
-  host.ownerDocument?.getElementById(NOTE_ID)?.remove();
+  // Scoped to the host rather than the document: the overlay lives in a shadow
+  // root, where getElementById on the document finds nothing.
+  host.querySelector(`#${NOTE_ID}`)?.remove();
 
   const doc = host.ownerDocument ?? document;
   const calm = doc.defaultView?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;

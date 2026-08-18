@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
 import { TintPicker } from "@/components/TintPicker";
@@ -10,6 +10,7 @@ import { getIdentity, setIdentityName, setIdentityTint, MAX_NAME, type Identity 
 import { getServerUrl } from "@/lib/server";
 import { pingServer } from "@/lib/socket";
 import { openPanel } from "@/lib/panel";
+import { canRunOn, hostOf, requestAccessTo } from "@/lib/site";
 import { startRoom } from "@/lib/startRoom";
 
 export function Popup() {
@@ -20,11 +21,24 @@ export function Popup() {
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
+  // Null while unknown. The manifest names the platforms this build ships, so a
+  // site outside that list needs a grant before the content script exists there.
+  const [site, setSite] = useState<{ url: string; host: string; allowed: boolean } | null>(null);
 
   useEffect(() => {
     void getIdentity().then(setYou);
     void getServerUrl().then((url) => void pingServer(url).then(setReachable));
   }, []);
+
+  const checkSite = useCallback(async () => {
+    const tab = await getActiveTab();
+    if (!tab?.url) return setSite(null);
+    setSite({ url: tab.url, host: hostOf(tab.url), allowed: await canRunOn(tab.url) });
+  }, []);
+
+  useEffect(() => {
+    void checkSite();
+  }, [checkSite]);
 
   // In a room, build the link immediately: sharing it is the entire point of
   // having started one, and the inherited UI buried it two clicks deep.
@@ -51,6 +65,15 @@ export function Popup() {
       openPanel: (id) => void openPanel(id),
       send: sendToBackground,
       close: () => window.close(),
+    });
+  }
+
+  // Straight off the click: Chrome refuses a permission request that has had an
+  // await in front of it, because the user activation is already spent.
+  function allowSite() {
+    if (!site) return;
+    void requestAccessTo(site.url).then((granted) => {
+      if (granted) void checkSite();
     });
   }
 
@@ -106,6 +129,8 @@ export function Popup() {
           onRetint={retint}
           hasVideo={hasVideo}
           reachable={reachable}
+          site={site}
+          onAllowSite={allowSite}
           onStart={start}
         />
       )}
@@ -187,6 +212,8 @@ function Idle({
   onRetint,
   hasVideo,
   reachable,
+  site,
+  onAllowSite,
   onStart,
 }: {
   you: Identity | null;
@@ -196,6 +223,8 @@ function Idle({
   onRetint: (tint: number) => void;
   hasVideo: boolean | null;
   reachable: boolean | null;
+  site: { url: string; host: string; allowed: boolean } | null;
+  onAllowSite: () => void;
   onStart: () => void;
 }) {
   const nameRef = useRef<HTMLInputElement>(null);
@@ -203,7 +232,8 @@ function Idle({
     if (editing) nameRef.current?.focus();
   }, [editing]);
 
-  const blocked = hasVideo === false || reachable === false;
+  const needsSite = site !== null && !site.allowed;
+  const blocked = hasVideo === false || reachable === false || needsSite;
 
   return (
     <div className="animate-ab-in">
@@ -255,21 +285,36 @@ function Idle({
       </div>
 
       <div className="mt-2.5 px-3.5">
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={blocked}
-          className="w-full rounded-xl bg-ab-lamp px-3 py-3 text-[14px] font-semibold text-ab-ink transition-all enabled:hover:brightness-105 enabled:active:scale-[.99] disabled:opacity-40"
-        >
-          Start watching together
-        </button>
+        {/* Abode ships support for a named list of services rather than asking
+            for every page you visit, so an unlisted site is a question, not a
+            dead end. */}
+        {needsSite ? (
+          <button
+            type="button"
+            onClick={onAllowSite}
+            className="w-full rounded-xl border border-ab-edge-strong px-3 py-3 text-[14px] font-semibold text-ab-cream transition-colors hover:bg-ab-raised"
+          >
+            Turn on Abode for {site.host || "this site"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onStart}
+            disabled={blocked}
+            className="w-full rounded-xl bg-ab-lamp px-3 py-3 text-[14px] font-semibold text-ab-ink transition-all enabled:hover:brightness-105 enabled:active:scale-[.99] disabled:opacity-40"
+          >
+            Start watching together
+          </button>
+        )}
 
         <p className="mt-2 text-[12px] leading-[1.5] text-ab-dim">
-          {hasVideo === false
-            ? "Open something to watch first, then start a room here."
-            : reachable === false
-              ? "Can't reach the relay. Check your connection and reopen this."
-              : "You'll get a link to send. Everyone watches on their own account."}
+          {needsSite
+            ? "Abode ships with Netflix and Crunchyroll built in. Any other site needs your say-so first."
+            : hasVideo === false
+              ? "Open something to watch first, then start a room here."
+              : reachable === false
+                ? "Can't reach the relay. Check your connection and reopen this."
+                : "You'll get a link to send. Everyone watches on their own account."}
         </p>
       </div>
     </div>

@@ -3,7 +3,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const EXT_PATH = path.resolve(dir, '../dist-test');
+// The live suite builds a separate bundle pointed at the deployed relay, so the
+// directory is an input rather than a constant.
+const EXT_PATH = path.resolve(dir, '..', process.env.ABODE_EXT_DIR ?? 'dist-test');
 
 export const VIDEO_URL = 'http://127.0.0.1:5190/video.html';
 // host page on one origin embedding the player on another == cross-origin iframe
@@ -20,7 +22,7 @@ export interface User {
   close: () => Promise<void>;
 }
 
-// one persistent context == one isolated browser profile == one "bear".
+// one persistent context == one isolated browser profile == one person.
 // launching it twice gives us two independent users sharing a room code.
 export async function launchUser(opts: { url?: string } = {}): Promise<User> {
   const context = await chromium.launchPersistentContext('', {
@@ -91,3 +93,5 @@ export const setVideo = (p: Page | Frame, action: 'play' | 'pause', time?: numbe
     },
     { action, time },
   );
+
+export const videoTime = (p: Page | Frame) => p.evaluate(() => document.querySelector('video')!.currentTime);
