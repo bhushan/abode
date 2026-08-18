@@ -1,4 +1,5 @@
 import { STORAGE_KEYS, isValidCode } from '@/lib/room';
+import { openPanel } from '@/lib/panel';
 import { PANEL_PORT_NAME } from '@/lib/panelPort';
 import { createPanelRegistry } from './panel-registry';
 import { chromeSiteAccess, syncSiteAccess } from './site-access';
@@ -62,9 +63,12 @@ chrome.runtime.onMessage.addListener((msg: PopupMessage | ContentMessage, sender
     } catch {
       url = null;
     }
-    // open the side panel synchronously while the click's user gesture is still
-    // valid; any await first (getAuth/login) consumes the gesture and open() rejects
-    chrome.sidePanel.open({ tabId }).catch(() => {});
+    // open the panel synchronously while the click's user gesture is still valid;
+    // any await first consumes the gesture and open() rejects. openPanel rather
+    // than chrome.sidePanel directly, so a browser without a working side panel
+    // still gets one: reaching for the API bare threw here on Arc and took the
+    // rest of the join with it.
+    void openPanel(tabId);
     joinInvite(tabId, msg.code, url);
     return;
   }
