@@ -1,4 +1,6 @@
 import { defineConfig } from '@playwright/test';
+process.env.ABODE_EXT_DIR = 'dist-live';
+
 export default defineConfig({
   testDir: './e2e',
   testMatch: 'live.spec.ts',

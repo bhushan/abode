@@ -149,3 +149,5 @@ dist-test
 
 # Wrangler build cache
 .wrangler/
+
+dist-live

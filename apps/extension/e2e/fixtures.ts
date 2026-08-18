@@ -3,7 +3,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const EXT_PATH = path.resolve(dir, '../dist-test');
+// The live suite builds a separate bundle pointed at the deployed relay, so the
+// directory is an input rather than a constant.
+const EXT_PATH = path.resolve(dir, '..', process.env.ABODE_EXT_DIR ?? 'dist-test');
 
 export const VIDEO_URL = 'http://127.0.0.1:5190/video.html';
 // host page on one origin embedding the player on another == cross-origin iframe
