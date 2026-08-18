@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo, Mark } from "@/components/Logo";
 import { Avatar } from "@/components/Avatar";
 import { LockStrip } from "@/components/LockStrip";
+import { ControlLock } from "@/components/ControlLock";
 import { syncStateOf } from "@/lib/syncState";
 import { useRoomState } from "@/hooks/useRoomState";
 import { useVideoState } from "@/hooks/useVideoState";
 import { getIdentity, tintOf, type Identity } from "@/lib/identity";
 import { linkify } from "@/lib/linkify";
+import { getSeat } from "@/lib/seat";
 import { getServerUrl } from "@/lib/server";
 import { formatTimecode } from "@/lib/timecode";
 import { joinRoom, type ConnStatus, type RoomConnection, type VideoContentInfo } from "@/lib/socket";
@@ -23,6 +25,7 @@ export function SidePanel() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [content, setContent] = useState<VideoContentInfo | null>(null);
   const [typers, setTypers] = useState<Map<string, string>>(new Map());
+  const [locked, setLocked] = useState(false);
   const [draft, setDraft] = useState("");
 
   const conn = useRef<RoomConnection | null>(null);
@@ -48,10 +51,15 @@ export function SidePanel() {
     let connection: RoomConnection | undefined;
 
     void (async () => {
-      const serverUrl = await getServerUrl();
+      const [serverUrl, seat] = await Promise.all([getServerUrl(), getSeat()]);
       if (!live) return;
-      connection = joinRoom(serverUrl, roomCode, identity, {
+      connection = joinRoom(
+        serverUrl,
+        roomCode,
+        identity,
+        {
         onStatus: setStatus,
+        onLock: setLocked,
         onMembers: (list, selfId) => setMembers(list.map((m) => ({ ...m, you: m.id === selfId }))),
         onContent: setContent,
         onSystem: (text) => push({ type: "system", text, at: timeRef.current }),
@@ -72,7 +80,9 @@ export function SidePanel() {
             else next.delete(fromId);
             return next;
           }),
-      });
+        },
+        seat,
+      );
       conn.current = connection;
     })();
 
@@ -103,7 +113,14 @@ export function SidePanel() {
         className="pointer-events-none absolute inset-x-0 -top-10 h-48"
         style={{ background: "radial-gradient(60% 100% at 50% 0%, rgba(232,169,79,.13), transparent 72%)" }}
       />
-      <LockStrip state={syncStateOf(status)} at={videoTime} title={content?.title || undefined} />
+      <LockStrip state={syncStateOf(status)} at={videoTime} title={content?.title || undefined}>
+        <ControlLock
+          locked={locked}
+          canToggle={members.some((m) => m.you && m.host)}
+          hostName={members.find((m) => m.host)?.name}
+          onToggle={(next) => conn.current?.setLock(next)}
+        />
+      </LockStrip>
 
       <MemberRail members={members} />
 

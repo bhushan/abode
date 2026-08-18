@@ -91,3 +91,5 @@ export const setVideo = (p: Page | Frame, action: 'play' | 'pause', time?: numbe
     },
     { action, time },
   );
+
+export const videoTime = (p: Page | Frame) => p.evaluate(() => document.querySelector('video')!.currentTime);

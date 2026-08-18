@@ -21,6 +21,8 @@ interface RoomState {
   video?: VideoState;
   content?: Content;
   anchorId?: string;
+  /** Host-only control lock. Persisted, so a woken room does not quietly unlock. */
+  locked?: boolean;
 }
 
 /**
@@ -33,6 +35,14 @@ interface Att {
   id: string;
   member?: Member;
   host?: boolean;
+  /**
+   * Opaque per-install id shared by this person's two sockets.
+   *
+   * The crown is worn by a member socket, but playback arrives on a separate
+   * video socket, and nothing else connects the two. The seat is what lets the
+   * room recognise the host's player.
+   */
+  seat?: string;
   /** Display name for a video-only socket, used to attribute control events. */
   name?: string;
   content?: Content;
@@ -100,9 +110,11 @@ export class RoomDO extends DurableObject<Env> {
 
     switch (msg.ev) {
       case 'room:join':
-        return this.onJoin(ws, att, msg.member);
+        return this.onJoin(ws, att, msg.member, msg.seat);
       case 'room:leave':
         return this.onLeave(ws, att);
+      case 'room:lock':
+        return this.onLock(att, msg.locked);
       case 'member:update':
         return this.onMemberUpdate(ws, att, msg.member);
       case 'chat:send':
@@ -132,15 +144,43 @@ export class RoomDO extends DurableObject<Env> {
 
   // ---- handlers -----------------------------------------------------------
 
-  private async onJoin(ws: WebSocket, att: Att, member: Member): Promise<void> {
+  private async onJoin(ws: WebSocket, att: Att, member: Member, seat?: string): Promise<void> {
     // First member in the room wears the crown.
     const host = this.members(ws).length === 0;
-    this.attach(ws, { ...att, member, host });
+    const next: Att = { ...att, member, host };
+    if (seat !== undefined) next.seat = seat;
+    this.attach(ws, next);
     this.broadcastMembers();
     this.broadcast({ ev: 'room:system', text: `${member.name} joined the room` }, ws);
 
     const room = await this.load();
     if (room.content) this.sendTo(ws, { ev: 'room:content', ...room.content });
+    // Told unconditionally: a panel that assumed "unlocked" would show a control
+    // that does nothing, which is worse than showing the lock.
+    this.sendTo(ws, { ev: 'room:lock', locked: !!room.locked });
+  }
+
+  /**
+   * Turn the lock on or off. Only the socket wearing the crown may.
+   *
+   * A refusal is silent. There is nothing useful to tell a client that asked for
+   * something it cannot have, and an error frame would only teach a probe which
+   * seat holds the crown.
+   */
+  private async onLock(att: Att, locked: boolean): Promise<void> {
+    if (!att.host) return;
+    const room = await this.load();
+    if (room.locked === locked) return;
+    room.locked = locked;
+    await this.save();
+    this.broadcast({ ev: 'room:lock', locked });
+    const who = att.member?.name;
+    this.broadcast({
+      ev: 'room:system',
+      text: locked
+        ? `${who ?? 'The host'} is steering playback for everyone`
+        : `${who ?? 'The host'} handed playback back to the room`,
+    });
   }
 
   private async onLeave(ws: WebSocket, att: Att, opts?: { closing?: boolean }): Promise<void> {
@@ -182,11 +222,12 @@ export class RoomDO extends DurableObject<Env> {
   private async onSubscribe(
     ws: WebSocket,
     att: Att,
-    msg: { anchor?: boolean; key?: string; url?: string; title?: string; name?: string },
+    msg: { anchor?: boolean; key?: string; url?: string; title?: string; name?: string; seat?: string },
   ): Promise<void> {
     const room = await this.load();
     const next: Att = { ...att };
     if (msg.name) next.name = msg.name;
+    if (msg.seat !== undefined) next.seat = msg.seat;
 
     if (msg.key && msg.url) {
       const content: Content = { key: msg.key, url: msg.url, title: msg.title ?? '' };
@@ -230,6 +271,12 @@ export class RoomDO extends DurableObject<Env> {
 
   private async onControl(ws: WebSocket, att: Att, time: number, paused: boolean, rate?: number): Promise<void> {
     const room = await this.load();
+
+    // Locked and not the host's player: refuse, then put this player back where
+    // the room is. Refusing alone would leave them watching something nobody
+    // else is, which is the failure the lock exists to prevent.
+    if (room.locked && !this.isHostSeat(att)) return this.resync(ws, room);
+
     const prev = room.video;
     const text = this.describeControl(prev, { time, paused, rate }, att.name);
     if (text) this.broadcast({ ev: 'room:system', text });
@@ -260,6 +307,28 @@ export class RoomDO extends DurableObject<Env> {
     const delta = next.time - expected;
     if (Math.abs(delta) <= SEEK_NOTICE) return undefined;
     return `${name} ${delta > 0 ? 'skipped ahead to' : 'skipped back to'} ${formatTime(next.time)}`;
+  }
+
+  /** Does this socket belong to the person wearing the crown? */
+  private isHostSeat(att: Att): boolean {
+    if (att.host) return true;
+    if (att.seat === undefined) return false;
+    return this.members().some((s) => {
+      const a = s.deserializeAttachment() as Att | null;
+      return !!a?.host && a.seat === att.seat;
+    });
+  }
+
+  /** Send one socket the room's current position, without disturbing anyone else. */
+  private resync(ws: WebSocket, room: RoomState): void {
+    if (!room.video) return;
+    const elapsed = room.video.paused ? 0 : (Date.now() - room.video.updatedAt) / 1000;
+    this.sendTo(ws, {
+      ev: 'video:control',
+      time: room.video.time + elapsed,
+      paused: room.video.paused,
+      rate: room.video.rate,
+    });
   }
 
   /** Give the crown to whoever is left, so a room is never hostless. */

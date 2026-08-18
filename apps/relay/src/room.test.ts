@@ -431,3 +431,176 @@ describe('hibernation durability', () => {
     a.close();
   });
 });
+
+/**
+ * The host-only control lock.
+ *
+ * A member carries a `host` flag that, until now, nothing enforced. The wrinkle
+ * is that a person occupies two sockets: the panel joins the room as a member,
+ * the content script subscribes as a video channel, and neither knows about the
+ * other. So both present a `seat`, an opaque per-install id, and the room binds
+ * the crown to the seat rather than to a socket.
+ *
+ * Enforcement is here and only here. Hiding the control in the panel would stop
+ * an honest client and nobody else, and the person being stopped is the one
+ * whose player is about to fight the room.
+ */
+describe('control lock', () => {
+  /** A person: a panel socket that joins, and a video socket that subscribes. */
+  async function person(code: string, name: string, seat: string, anchor = false) {
+    const panel = await Client.connect(code);
+    panel.send({ ev: 'room:join', member: member(name), seat });
+    const video = await Client.connect(code);
+    video.send({ ev: 'video:subscribe', anchor, key: 'k', url: 'https://x/1', title: 'One', name, seat });
+    await settle();
+    return { panel, video, close: () => { panel.close(); video.close(); } };
+  }
+
+  it('tells the room when the host locks the controls', async () => {
+    const code = 'ABODE-LOCK01';
+    const host = await person(code, 'Ada', 's-ada', true);
+    const guest = await person(code, 'Bo', 's-bo');
+
+    // Everyone is told the lock state the moment they join, so the interesting
+    // frame is the newest one rather than the first.
+    host.panel.send({ ev: 'room:lock', locked: true });
+    await settle();
+    const heard = guest.panel.all('room:lock');
+
+    expect(heard[heard.length - 1].locked).toBe(true);
+    host.close();
+    guest.close();
+  });
+
+  it('drops a guest control and snaps that guest back to where the room is', async () => {
+    const code = 'ABODE-LOCK02';
+    const host = await person(code, 'Ada', 's-ada', true);
+    const guest = await person(code, 'Bo', 's-bo');
+
+    host.video.send({ ev: 'video:control', time: 100, paused: true });
+    await settle();
+    host.panel.send({ ev: 'room:lock', locked: true });
+    await settle();
+
+    const before = guest.video.all('video:control').length;
+    guest.video.send({ ev: 'video:control', time: 5, paused: false });
+    await settle();
+
+    // the guest is corrected rather than obeyed
+    const after = guest.video.all('video:control');
+    expect(after.length).toBe(before + 1);
+    expect(after[after.length - 1]).toMatchObject({ time: 100, paused: true });
+    // and nobody else was moved
+    expect(host.video.all('video:control')).toHaveLength(0);
+
+    host.close();
+    guest.close();
+  });
+
+  it('still lets the host drive while the lock is on', async () => {
+    const code = 'ABODE-LOCK03';
+    const host = await person(code, 'Ada', 's-ada', true);
+    const guest = await person(code, 'Bo', 's-bo');
+
+    host.panel.send({ ev: 'room:lock', locked: true });
+    await settle();
+    host.video.send({ ev: 'video:control', time: 42, paused: false });
+
+    const got = await guest.video.next('video:control');
+    expect(got).toMatchObject({ time: 42, paused: false });
+
+    host.close();
+    guest.close();
+  });
+
+  it('ignores a guest who asks for the lock, and says nothing back', async () => {
+    const code = 'ABODE-LOCK04';
+    const host = await person(code, 'Ada', 's-ada', true);
+    const guest = await person(code, 'Bo', 's-bo');
+
+    const before = host.panel.all('room:lock').length;
+    guest.panel.send({ ev: 'room:lock', locked: true });
+    await settle();
+
+    expect(host.panel.all('room:lock')).toHaveLength(before);
+    // the guest can still drive, which is the property that actually matters
+    guest.video.send({ ev: 'video:control', time: 9, paused: false });
+    const got = await host.video.next('video:control');
+    expect(got).toMatchObject({ time: 9 });
+
+    host.close();
+    guest.close();
+  });
+
+  it('hands a newcomer the lock state, so their panel does not lie about it', async () => {
+    const code = 'ABODE-LOCK05';
+    const host = await person(code, 'Ada', 's-ada', true);
+    host.panel.send({ ev: 'room:lock', locked: true });
+    await settle();
+
+    const late = await Client.connect(code);
+    late.send({ ev: 'room:join', member: member('Cy'), seat: 's-cy' });
+
+    const state = await late.next('room:lock');
+    expect(state.locked).toBe(true);
+
+    late.close();
+    host.close();
+  });
+
+  it('lets go again when the host unlocks', async () => {
+    const code = 'ABODE-LOCK06';
+    const host = await person(code, 'Ada', 's-ada', true);
+    const guest = await person(code, 'Bo', 's-bo');
+
+    host.panel.send({ ev: 'room:lock', locked: true });
+    await settle();
+    host.panel.send({ ev: 'room:lock', locked: false });
+    await settle();
+
+    guest.video.send({ ev: 'video:control', time: 12, paused: false });
+    const got = await host.video.next('video:control');
+    expect(got).toMatchObject({ time: 12 });
+
+    host.close();
+    guest.close();
+  });
+
+  it('moves the lock with the crown when the host leaves', async () => {
+    const code = 'ABODE-LOCK07';
+    const host = await person(code, 'Ada', 's-ada', true);
+    const guest = await person(code, 'Bo', 's-bo');
+
+    host.panel.send({ ev: 'room:lock', locked: true });
+    await settle();
+    host.close();
+    await settle();
+
+    // Bo now wears the crown, so Bo drives. A room whose only host has gone must
+    // not be a room nobody can touch.
+    guest.video.send({ ev: 'video:control', time: 31, paused: false });
+    await settle();
+    const late = await Client.connect(code);
+    late.send({ ev: 'video:subscribe', name: 'Cy', seat: 's-cy' });
+    const caught = await late.next('video:control');
+    expect(caught.time).toBeCloseTo(31, 0);
+
+    late.close();
+    guest.close();
+  });
+
+  it('remembers the lock in storage, since an evicted isolate forgets everything else', async () => {
+    const code = 'ABODE-LOCK08';
+    const host = await person(code, 'Ada', 's-ada', true);
+    host.panel.send({ ev: 'room:lock', locked: true });
+    await settle();
+
+    const stub = env.ROOM.get(env.ROOM.idFromName(code));
+    const stored = await runInDurableObject(stub, (_instance: unknown, state: DurableObjectState) =>
+      state.storage.get<Record<string, unknown>>('room'),
+    );
+    expect(stored!.locked).toBe(true);
+
+    host.close();
+  });
+});

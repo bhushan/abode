@@ -46,6 +46,8 @@ interface TypingPayload {
 
 export interface RoomHandlers {
   onMembers: (members: Member[], selfId: string | undefined) => void;
+  /** Whether the host is currently steering playback for everyone. */
+  onLock: (locked: boolean) => void;
   onChat: (msg: ChatPayload) => void;
   onTyping: (msg: TypingPayload) => void;
   onSystem: (text: string) => void;
@@ -55,6 +57,8 @@ export interface RoomHandlers {
 
 export interface RoomConnection {
   sendChat: (text: string, opts?: ChatOpts) => void;
+  /** Ask to lock or unlock playback. The relay ignores this unless you are host. */
+  setLock: (locked: boolean) => void;
   sendTyping: (typing: boolean) => void;
   sendReaction: (emoji: string) => void;
   updateMember: (member: Identity) => void;
@@ -78,6 +82,8 @@ export interface VideoChannelOpts {
   anchor: boolean;
   content: VideoContentInfo;
   name: string;
+  /** This browser's seat, so the relay can recognise the host's own player. */
+  seat?: string;
   onControl: (c: VideoControl) => void;
   onReaction: (p: { emoji: string }) => void;
 }
@@ -104,7 +110,7 @@ export function joinVideoChannel(serverUrl: string, code: string, opts: VideoCha
   // Replayed on every reconnect using the *current* anchor and content, not the
   // values we started with: a dropped socket that comes back mid-episode should
   // resubscribe to what it is playing now.
-  socket.setPrimer(() => ({ ev: 'video:subscribe', anchor, ...content, name: opts.name }));
+  socket.setPrimer(() => ({ ev: 'video:subscribe', anchor, ...content, name: opts.name, seat: opts.seat }));
 
   socket.on('video:control', (f) =>
     opts.onControl({ time: f.time as number, paused: f.paused as boolean, rate: f.rate as number | undefined }),
@@ -120,19 +126,25 @@ export function joinVideoChannel(serverUrl: string, code: string, opts: VideoCha
     claimAnchor: (c) => {
       anchor = true;
       content = c;
-      socket.send({ ev: 'video:subscribe', anchor: true, ...c, name: opts.name });
+      socket.send({ ev: 'video:subscribe', anchor: true, ...c, name: opts.name, seat: opts.seat });
     },
     disconnect: () => socket.close(),
   };
 }
 
-export function joinRoom(serverUrl: string, code: string, member: Identity, handlers: RoomHandlers): RoomConnection {
+export function joinRoom(
+  serverUrl: string,
+  code: string,
+  member: Identity,
+  handlers: RoomHandlers,
+  seat?: string,
+): RoomConnection {
   // The relay assigns this on connect. socket.io used to hand us socket.id for
   // free; the side panel needs it to tell "you" apart in the member list.
   let selfId: string | undefined;
 
   const socket = open(serverUrl, code, handlers.onStatus);
-  socket.setPrimer(() => ({ ev: 'room:join', member }));
+  socket.setPrimer(() => ({ ev: 'room:join', member, seat }));
 
   socket.on('room:welcome', (f) => {
     selfId = f.id as string;
@@ -142,11 +154,13 @@ export function joinRoom(serverUrl: string, code: string, member: Identity, hand
   socket.on('chat:typing', (f) => handlers.onTyping(f as unknown as TypingPayload));
   socket.on('room:system', (f) => handlers.onSystem(f.text as string));
   socket.on('room:content', (f) => handlers.onContent(f as unknown as VideoContentInfo));
+  socket.on('room:lock', (f) => handlers.onLock(f.locked === true));
 
   return {
     sendChat: (text, opts) => socket.send({ ev: 'chat:send', text, ...opts }),
     sendTyping: (typing) => socket.send({ ev: 'chat:typing', typing }),
     sendReaction: (emoji) => socket.send({ ev: 'reaction:send', emoji }),
+    setLock: (locked) => socket.send({ ev: 'room:lock', locked }),
     updateMember: (m) => socket.send({ ev: 'member:update', member: m }),
     disconnect: () => {
       socket.send({ ev: 'room:leave' });

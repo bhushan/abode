@@ -31,6 +31,7 @@ const handlers = () => ({
   onSystem: vi.fn(),
   onStatus: vi.fn(),
   onContent: vi.fn(),
+  onLock: vi.fn(),
 });
 
 beforeEach(() => {
@@ -209,5 +210,65 @@ describe('pingServer', () => {
   it('rejects an unreachable host rather than throwing', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('nope')));
     await expect(pingServer('https://r.test')).resolves.toBe(false);
+  });
+});
+
+/**
+ * The host lock is enforced by the relay, never by hiding the button. These
+ * cover the two halves the client is responsible for: presenting the seat that
+ * lets the relay recognise this browser, and reporting the state it is told.
+ */
+describe('control lock', () => {
+  it('presents the same seat on both of a person\'s sockets', () => {
+    joinRoom('https://r.test', 'ABODE-TEST01', identity, handlers(), 'seat-1');
+    latest().open();
+    expect(latest().frames[0]).toMatchObject({ ev: 'room:join', seat: 'seat-1' });
+
+    joinVideoChannel('https://r.test', 'ABODE-TEST01', {
+      anchor: true,
+      content: { key: 'k', url: 'https://x/1', title: 'One' },
+      name: 'Ada',
+      seat: 'seat-1',
+      onControl: vi.fn(),
+      onReaction: vi.fn(),
+    });
+    latest().open();
+    expect(latest().frames[0]).toMatchObject({ ev: 'video:subscribe', seat: 'seat-1' });
+  });
+
+  it('re-presents the seat after a reconnect, along with the rest of the primer', () => {
+    vi.useFakeTimers();
+    joinRoom('https://r.test', 'ABODE-TEST01', identity, handlers(), 'seat-1');
+    latest().open();
+    latest().close();
+    vi.advanceTimersByTime(30_000);
+    latest().open();
+    expect(latest().frames[0]).toMatchObject({ ev: 'room:join', seat: 'seat-1' });
+    vi.useRealTimers();
+  });
+
+  it('omits the seat entirely rather than sending null when there is none', () => {
+    joinRoom('https://r.test', 'ABODE-TEST01', identity, handlers());
+    latest().open();
+    expect(latest().frames[0]).toEqual({ ev: 'room:join', member: identity });
+  });
+
+  it('reports the lock state the relay announces', () => {
+    const h = handlers();
+    joinRoom('https://r.test', 'ABODE-TEST01', identity, h, 'seat-1');
+    latest().open();
+
+    latest().deliver({ ev: 'room:lock', locked: true });
+    expect(h.onLock).toHaveBeenCalledWith(true);
+
+    latest().deliver({ ev: 'room:lock', locked: false });
+    expect(h.onLock).toHaveBeenLastCalledWith(false);
+  });
+
+  it('asks for the lock without deciding whether it is allowed', () => {
+    const conn = joinRoom('https://r.test', 'ABODE-TEST01', identity, handlers(), 'seat-1');
+    latest().open();
+    conn.setLock(true);
+    expect(latest().frames.at(-1)).toEqual({ ev: 'room:lock', locked: true });
   });
 });

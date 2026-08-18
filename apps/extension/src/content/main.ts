@@ -4,6 +4,7 @@ import { STORAGE_KEYS, parseInviteCode, parseInviteUrl, INVITE_BASE_URL } from '
 import { getServerUrl } from '@/lib/server';
 import { contentKey } from '@/lib/content';
 import { getIdentity } from '@/lib/identity';
+import { getSeat } from '@/lib/seat';
 import { showPanel, hidePanel, reparentPanel } from './panel-frame';
 import { createLoveCounter, showLoveNote } from './love-note';
 
@@ -291,13 +292,13 @@ function runTop(): void {
     currentCode = code;
     if (anchor) isAnchor = true; // the explicit message wins over the storage-arm path
     if (!channel) {
-      const url = await getServerUrl();
-      const { name } = await getIdentity();
+      const [url, { name }, seat] = await Promise.all([getServerUrl(), getIdentity(), getSeat()]);
       if (!channel) {
         channel = joinVideoChannel(url, code, {
           anchor: isAnchor,
           content: currentContent(),
           name,
+          seat,
           onControl: applyControl,
           onReaction: (p) => spawnReaction(p.emoji),
         });

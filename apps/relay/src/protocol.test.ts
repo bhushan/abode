@@ -126,3 +126,39 @@ describe('reactions', () => {
     expect(REACTIONS.has('<script>')).toBe(false);
   });
 });
+
+describe('room:lock', () => {
+  it('accepts a boolean and nothing else', () => {
+    expect(parseClientMessage(JSON.stringify({ ev: 'room:lock', locked: true }))).toEqual({
+      ev: 'room:lock',
+      locked: true,
+    });
+    expect(parseClientMessage(JSON.stringify({ ev: 'room:lock', locked: false }))).toEqual({
+      ev: 'room:lock',
+      locked: false,
+    });
+    expect(parseClientMessage(JSON.stringify({ ev: 'room:lock', locked: 'yes' }))).toBeNull();
+    expect(parseClientMessage(JSON.stringify({ ev: 'room:lock' }))).toBeNull();
+  });
+});
+
+describe('seat', () => {
+  const seat = (extra: Record<string, unknown>) =>
+    parseClientMessage(JSON.stringify({ ev: 'room:join', member: { name: 'Ada', tint: 0 }, ...extra }));
+
+  it('rides along with a join and a subscribe', () => {
+    expect(seat({ seat: 'abc' })).toMatchObject({ seat: 'abc' });
+    expect(
+      parseClientMessage(JSON.stringify({ ev: 'video:subscribe', seat: 'abc' })),
+    ).toMatchObject({ seat: 'abc' });
+  });
+
+  it('stays optional, so a client that predates it still joins', () => {
+    expect(seat({})).toEqual({ ev: 'room:join', member: { name: 'Ada', tint: 0 } });
+  });
+
+  it('refuses an oversized or non-string seat rather than truncating it', () => {
+    expect(seat({ seat: 'x'.repeat(65) })).toBeNull();
+    expect(seat({ seat: 12 })).toBeNull();
+  });
+});

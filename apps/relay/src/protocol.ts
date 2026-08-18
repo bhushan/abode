@@ -32,6 +32,16 @@ export interface Member {
   tint: number;
 }
 
+/**
+ * How long an opaque per-install seat id may be.
+ *
+ * A person occupies two sockets: a panel that joins the room and a content
+ * script that subscribes to video. Neither knows about the other, so both
+ * present the same seat and the room binds the crown to the seat. The relay
+ * never interprets it, only compares it, so its only rule is a length.
+ */
+const MAX_SEAT = 64;
+
 export interface ReplyRef {
   mid?: string;
   from: string;
@@ -45,13 +55,14 @@ export interface Content {
 }
 
 export type ClientMessage =
-  | { ev: 'room:join'; member: Member }
+  | { ev: 'room:join'; member: Member; seat?: string }
   | { ev: 'room:leave' }
+  | { ev: 'room:lock'; locked: boolean }
   | { ev: 'member:update'; member: Member }
   | { ev: 'chat:send'; text: string; mid?: string; replyTo?: ReplyRef }
   | { ev: 'chat:typing'; typing: boolean }
   | { ev: 'reaction:send'; emoji: string }
-  | { ev: 'video:subscribe'; anchor?: boolean; key?: string; url?: string; title?: string; name?: string }
+  | { ev: 'video:subscribe'; anchor?: boolean; key?: string; url?: string; title?: string; name?: string; seat?: string }
   | { ev: 'video:content'; key: string; url: string; title: string }
   | { ev: 'video:control'; time: number; paused: boolean; rate?: number };
 
@@ -105,11 +116,18 @@ export function parseClientMessage(raw: string): ClientMessage | null {
   switch (data.ev) {
     case 'room:join': {
       const member = parseMember(data.member);
-      return member ? { ev: 'room:join', member } : null;
+      if (!member) return null;
+      if (!optStr(data.seat, MAX_SEAT)) return null;
+      const msg: ClientMessage = { ev: 'room:join', member };
+      if (typeof data.seat === 'string') msg.seat = data.seat;
+      return msg;
     }
 
     case 'room:leave':
       return { ev: 'room:leave' };
+
+    case 'room:lock':
+      return typeof data.locked === 'boolean' ? { ev: 'room:lock', locked: data.locked } : null;
 
     case 'member:update': {
       const member = parseMember(data.member);
@@ -139,7 +157,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (data.anchor !== undefined && typeof data.anchor !== 'boolean') return null;
       if (!optStr(data.key, 512) || !optStr(data.url, 2048)) return null;
       if (!optStr(data.title, 300) || !optStr(data.name, 24)) return null;
+      if (!optStr(data.seat, MAX_SEAT)) return null;
       const msg: ClientMessage = { ev: 'video:subscribe' };
+      if (typeof data.seat === 'string') msg.seat = data.seat;
       if (typeof data.anchor === 'boolean') msg.anchor = data.anchor;
       if (typeof data.key === 'string') msg.key = data.key;
       if (typeof data.url === 'string') msg.url = data.url;
