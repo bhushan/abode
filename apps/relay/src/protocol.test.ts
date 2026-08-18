@@ -11,23 +11,23 @@ const member = { name: 'Bhushan', tint: 3 };
 // mirrors apps/server/src/room/room.dto.test.ts so the port is provably faithful
 describe('room code', () => {
   it('accepts the codes the extension generates', () => {
-    expect(isValidCode('BEAR-TEST01')).toBe(true);
+    expect(isValidCode('ABODE-TEST01')).toBe(true);
     // 10-char suffix, the hardened length from Phase 2b
     expect(isValidCode('HONEY-ABCDEFGHJK')).toBe(true);
   });
 
   it('rejects lowercase and missing separator', () => {
-    expect(isValidCode('bear-test01')).toBe(false);
+    expect(isValidCode('abode-test01')).toBe(false);
     expect(isValidCode('BEARTEST01')).toBe(false);
   });
 
   it('rejects a suffix longer than the regex allows', () => {
-    expect(isValidCode('BEAR-' + 'A'.repeat(13))).toBe(false);
+    expect(isValidCode('ABODE-' + 'A'.repeat(13))).toBe(false);
   });
 
   it('is anchored so it cannot be smuggled inside a longer string', () => {
-    expect(ROOM_CODE_RE.test('x BEAR-TEST01')).toBe(false);
-    expect(ROOM_CODE_RE.test('BEAR-TEST01 x')).toBe(false);
+    expect(ROOM_CODE_RE.test('x ABODE-TEST01')).toBe(false);
+    expect(ROOM_CODE_RE.test('ABODE-TEST01 x')).toBe(false);
   });
 });
 

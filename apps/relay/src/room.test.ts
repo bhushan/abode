@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { SELF, env, runInDurableObject } from 'cloudflare:test';
 
-const CODE = 'BEAR-TEST01';
+const CODE = 'ABODE-TEST01';
 const member = (name: string, tint = 0) => ({ name, tint });
 
 type Frame = Record<string, unknown> & { ev: string };
@@ -82,7 +82,7 @@ describe('connection', () => {
 
 describe('identity', () => {
   it('greets a new socket with its own id, which socket.io used to supply', async () => {
-    const a = await Client.connect('BEAR-WELC01');
+    const a = await Client.connect('ABODE-WELC01');
     const hello = await a.next('room:welcome');
     expect(typeof hello.id).toBe('string');
     expect(String(hello.id).length).toBeGreaterThan(8);
@@ -90,7 +90,7 @@ describe('identity', () => {
   });
 
   it('uses that id as the fromId on the sender own messages', async () => {
-    const code = 'BEAR-WELC02';
+    const code = 'ABODE-WELC02';
     const a = await Client.connect(code);
     const hello = await a.next('room:welcome');
     a.send({ ev: 'room:join', member: member('Ada') });
@@ -106,7 +106,7 @@ describe('identity', () => {
   });
 
   it('marks the caller in the member list via a matching id', async () => {
-    const code = 'BEAR-WELC03';
+    const code = 'ABODE-WELC03';
     const a = await Client.connect(code);
     const hello = await a.next('room:welcome');
     a.send({ ev: 'room:join', member: member('Ada') });
@@ -119,7 +119,7 @@ describe('identity', () => {
 
 describe('membership', () => {
   it('broadcasts the member list when someone joins', async () => {
-    const a = await Client.connect('BEAR-MEMB01');
+    const a = await Client.connect('ABODE-MEMB01');
     a.send({ ev: 'room:join', member: member('Ada') });
     const frame = await a.next('room:members');
     const members = frame.members as { name: string; host: boolean }[];
@@ -129,7 +129,7 @@ describe('membership', () => {
   });
 
   it('makes the first joiner host and hands the crown over when they leave', async () => {
-    const code = 'BEAR-HOST01';
+    const code = 'ABODE-HOST01';
     const a = await Client.connect(code);
     a.send({ ev: 'room:join', member: member('Ada') });
     await a.next('room:members');
@@ -150,7 +150,7 @@ describe('membership', () => {
   });
 
   it('tells others someone joined without echoing the notice to the joiner', async () => {
-    const code = 'BEAR-SYS001';
+    const code = 'ABODE-SYS001';
     const a = await Client.connect(code);
     a.send({ ev: 'room:join', member: member('Ada') });
     await a.next('room:members');
@@ -171,7 +171,7 @@ describe('membership', () => {
 
 describe('chat', () => {
   it('delivers a message to others but not back to the sender', async () => {
-    const code = 'BEAR-CHAT01';
+    const code = 'ABODE-CHAT01';
     const a = await Client.connect(code);
     a.send({ ev: 'room:join', member: member('Ada') });
     const b = await Client.connect(code);
@@ -189,7 +189,7 @@ describe('chat', () => {
   });
 
   it('drops a chat message from a socket that never joined', async () => {
-    const code = 'BEAR-CHAT02';
+    const code = 'ABODE-CHAT02';
     const a = await Client.connect(code);
     a.send({ ev: 'room:join', member: member('Ada') });
     await settle();
@@ -206,7 +206,7 @@ describe('chat', () => {
 
 describe('reactions', () => {
   it('fans a known emoji out to everyone including the sender', async () => {
-    const code = 'BEAR-REAC01';
+    const code = 'ABODE-REAC01';
     const a = await Client.connect(code);
     a.send({ ev: 'room:join', member: member('Ada') });
     await settle();
@@ -218,7 +218,7 @@ describe('reactions', () => {
   });
 
   it('drops an emoji outside the known set', async () => {
-    const code = 'BEAR-REAC02';
+    const code = 'ABODE-REAC02';
     const a = await Client.connect(code);
     a.send({ ev: 'room:join', member: member('Ada') });
     await settle();
@@ -232,7 +232,7 @@ describe('reactions', () => {
 
 describe('video sync', () => {
   it('relays a control to the other clients but not the sender', async () => {
-    const code = 'BEAR-VID001';
+    const code = 'ABODE-VID001';
     const a = await Client.connect(code);
     a.send({ ev: 'video:subscribe', anchor: true, key: 'k', url: 'https://x/1', title: 'One', name: 'Ada' });
     const b = await Client.connect(code);
@@ -250,7 +250,7 @@ describe('video sync', () => {
   });
 
   it('hands a late joiner the current position, advanced by elapsed time', async () => {
-    const code = 'BEAR-LATE01';
+    const code = 'ABODE-LATE01';
     const a = await Client.connect(code);
     a.send({ ev: 'video:subscribe', anchor: true, key: 'k', url: 'https://x/1', title: 'One', name: 'Ada' });
     await settle();
@@ -269,7 +269,7 @@ describe('video sync', () => {
   });
 
   it('does not advance a paused position for a late joiner', async () => {
-    const code = 'BEAR-LATE02';
+    const code = 'ABODE-LATE02';
     const a = await Client.connect(code);
     a.send({ ev: 'video:subscribe', anchor: true, key: 'k', url: 'https://x/1', title: 'One', name: 'Ada' });
     await settle();
@@ -286,7 +286,7 @@ describe('video sync', () => {
   });
 
   it('carries the last known rate forward when a control omits it', async () => {
-    const code = 'BEAR-RATE01';
+    const code = 'ABODE-RATE01';
     const a = await Client.connect(code);
     a.send({ ev: 'video:subscribe', anchor: true, key: 'k', url: 'https://x/1', title: 'One', name: 'Ada' });
     const b = await Client.connect(code);
@@ -304,7 +304,7 @@ describe('video sync', () => {
   });
 
   it('gives a newcomer the anchor content rather than their own', async () => {
-    const code = 'BEAR-CONT01';
+    const code = 'ABODE-CONT01';
     const a = await Client.connect(code);
     a.send({ ev: 'video:subscribe', anchor: true, key: 'anchor', url: 'https://x/anchor', title: 'Anchor', name: 'Ada' });
     await settle();
@@ -318,7 +318,7 @@ describe('video sync', () => {
   });
 
   it('reseats the anchor when the anchor disconnects', async () => {
-    const code = 'BEAR-ANCH01';
+    const code = 'ABODE-ANCH01';
     const a = await Client.connect(code);
     a.send({ ev: 'video:subscribe', anchor: true, key: 'anchor', url: 'https://x/anchor', title: 'Anchor', name: 'Ada' });
     const b = await Client.connect(code);
@@ -334,7 +334,7 @@ describe('video sync', () => {
   });
 
   it('narrates a deliberate seek but stays quiet about normal advance', async () => {
-    const code = 'BEAR-NARR01';
+    const code = 'ABODE-NARR01';
     const a = await Client.connect(code);
     a.send({ ev: 'video:subscribe', anchor: true, key: 'k', url: 'https://x/1', title: 'One', name: 'Ada' });
     await settle();
@@ -359,7 +359,7 @@ describe('video sync', () => {
 
 describe('rate limiting', () => {
   it('drops messages past the per-socket window', async () => {
-    const code = 'BEAR-RATE99';
+    const code = 'ABODE-RATE99';
     const a = await Client.connect(code);
     a.send({ ev: 'room:join', member: member('Ada') });
     const b = await Client.connect(code);
@@ -379,9 +379,9 @@ describe('rate limiting', () => {
 
 describe('isolation', () => {
   it('keeps two rooms from hearing each other', async () => {
-    const a = await Client.connect('BEAR-ISO001');
+    const a = await Client.connect('ABODE-ISO001');
     a.send({ ev: 'room:join', member: member('Ada') });
-    const b = await Client.connect('BEAR-ISO002');
+    const b = await Client.connect('ABODE-ISO002');
     b.send({ ev: 'room:join', member: member('Bo') });
     await settle();
 
@@ -396,7 +396,7 @@ describe('isolation', () => {
 
 describe('hibernation durability', () => {
   it('persists room state to storage, so an evicted isolate does not forget the film', async () => {
-    const code = 'BEAR-HIB001';
+    const code = 'ABODE-HIB001';
     const a = await Client.connect(code);
     a.send({ ev: 'video:subscribe', anchor: true, key: 'k', url: 'https://x/1', title: 'One', name: 'Ada' });
     await settle();
@@ -417,7 +417,7 @@ describe('hibernation durability', () => {
   });
 
   it('keeps per-socket identity on the socket attachment, which survives hibernation', async () => {
-    const code = 'BEAR-HIB002';
+    const code = 'ABODE-HIB002';
     const a = await Client.connect(code);
     a.send({ ev: 'room:join', member: member('Ada') });
     await settle();

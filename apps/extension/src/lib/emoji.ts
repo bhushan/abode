@@ -2,7 +2,7 @@
 // MUST stay in sync with the REACTIONS allowlist in the relay
 // (apps/relay/src/protocol.ts) or the relay silently drops anything extra.
 export const REACTION_EMOJI = [
-  '🐻', '😂', '❤️', '😱', '😢', '😍', '😡', '👍', '👎', '🔥',
+  '🏠', '😂', '❤️', '😱', '😢', '😍', '😡', '👍', '👎', '🔥',
   '🎉', '👏', '🙌', '🤯', '😴', '🥱', '🤔', '😮', '😅', '😭',
   '🥺', '😎', '🤩', '😇', '🙃', '😏', '😬', '🤣', '💀', '👀',
   '✨', '⭐', '💯', '🙏', '🤝', '💪', '🍿', '☕', '🎬', '📺',

@@ -1,7 +1,7 @@
 {
   "name": "@abode/extension",
   "private": true,
-  "version": "0.4.4",
+  "version": "0.5.0",
   "type": "module",
   "description": "Abode browser extension",
   "license": "Apache-2.0",

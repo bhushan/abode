@@ -1,11 +1,15 @@
 name: CI
 
-# typecheck + unit tests on every push and PR. e2e stays local: it needs a headed
-# browser with the extension loaded, which hangs in CI runners.
+# Lint, typecheck and unit tests. Dispatched by hand, like every workflow here:
+# nothing in this repo runs itself.
+#
+#   gh workflow run ci.yml --ref main
+#
+# e2e stays local. It needs a headed browser with the extension loaded, and
+# extensions do not load correctly headless, so a CI run would report failures
+# that are not real.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:

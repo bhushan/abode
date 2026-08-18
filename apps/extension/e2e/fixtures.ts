@@ -20,7 +20,7 @@ export interface User {
   close: () => Promise<void>;
 }
 
-// one persistent context == one isolated browser profile == one "bear".
+// one persistent context == one isolated browser profile == one person.
 // launching it twice gives us two independent users sharing a room code.
 export async function launchUser(opts: { url?: string } = {}): Promise<User> {
   const context = await chromium.launchPersistentContext('', {

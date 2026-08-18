@@ -1,4 +1,4 @@
-// Wire protocol for the Telesync relay.
+// Wire protocol for the Abode relay.
 //
 // Ported from the original NestJS gateway's class-validator DTOs
 // (apps/server/src/room/room.dto.ts). Hand-rolled rather than schema-library
@@ -20,7 +20,7 @@ const MAX_TINT = 32;
 export const isValidCode = (code: string): boolean => ROOM_CODE_RE.test(code);
 
 export const REACTIONS = new Set([
-  '🐻', '😂', '❤️', '😱', '😢', '😍', '😡', '👍', '👎', '🔥',
+  '🏠', '😂', '❤️', '😱', '😢', '😍', '😡', '👍', '👎', '🔥',
   '🎉', '👏', '🙌', '🤯', '😴', '🥱', '🤔', '😮', '😅', '😭',
   '🥺', '😎', '🤩', '😇', '🙃', '😏', '😬', '🤣', '💀', '👀',
   '✨', '⭐', '💯', '🙏', '🤝', '💪', '🍿', '☕', '🎬', '📺',
