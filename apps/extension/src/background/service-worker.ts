@@ -1,12 +1,17 @@
 import { STORAGE_KEYS, isValidCode } from '@/lib/room';
-import { openPanel } from '@/lib/panel';
+import { ensurePanel, panelDropEndsRoom, restorePanel, tryNativePanel } from '@/lib/panel';
 import { PANEL_PORT_NAME } from '@/lib/panelPort';
 import { createPanelRegistry } from './panel-registry';
 import { chromeSiteAccess, syncSiteAccess } from './site-access';
 import type { PopupMessage, ContentMessage } from '@/lib/messages';
 
 function clearRoomState() {
-  void chrome.storage.local.set({ [STORAGE_KEYS.inRoom]: false, [STORAGE_KEYS.roomCode]: '', [STORAGE_KEYS.anchorTabId]: null });
+  void chrome.storage.local.set({
+    [STORAGE_KEYS.inRoom]: false,
+    [STORAGE_KEYS.roomCode]: '',
+    [STORAGE_KEYS.anchorTabId]: null,
+    [STORAGE_KEYS.panelTabId]: null,
+  });
 }
 
 // An invite link is the only credential there is, so following one joins straight
@@ -31,6 +36,22 @@ chrome.runtime.onMessage.addListener((msg: PopupMessage | ContentMessage, sender
     } else {
       void chrome.action.setBadgeText({ text: '', tabId });
     }
+    return;
+  }
+
+  // A page came back from a navigation and wants to know if it was hosting the
+  // panel. Only the worker knows which tab that was, and only it knows the tab id
+  // of whoever is asking.
+  if (msg.type === 'WB_RESTORE_PANEL') {
+    const tabId = sender.tab?.id;
+    if (tabId != null) void restorePanel(tabId);
+    return;
+  }
+
+  // The popup asked for a panel and then closed itself, taking every unfinished
+  // promise with it. Finishing the job here is the only place it can be finished.
+  if (msg.type === 'WB_ENSURE_PANEL') {
+    void ensurePanel(msg.tabId);
     return;
   }
 
@@ -63,12 +84,12 @@ chrome.runtime.onMessage.addListener((msg: PopupMessage | ContentMessage, sender
     } catch {
       url = null;
     }
-    // open the panel synchronously while the click's user gesture is still valid;
-    // any await first consumes the gesture and open() rejects. openPanel rather
-    // than chrome.sidePanel directly, so a browser without a working side panel
-    // still gets one: reaching for the API bare threw here on Arc and took the
-    // rest of the join with it.
-    void openPanel(tabId);
+    // Native attempt first, while the click's user gesture is still valid: any
+    // await in front of it spends the gesture and open() rejects. Then the same
+    // check every other caller gets, inline rather than by message, because a
+    // worker does not receive its own runtime.sendMessage.
+    tryNativePanel(tabId);
+    void ensurePanel(tabId);
     joinInvite(tabId, msg.code, url);
     return;
   }
@@ -83,8 +104,16 @@ chrome.runtime.onMessage.addListener((msg: PopupMessage | ContentMessage, sender
 // closing the panel drops this port; treat it as leaving the room, but only once
 // the panel is really gone rather than mid-reopen
 const panels = createPanelRegistry(() => {
-  chrome.storage.local.get(STORAGE_KEYS.inRoom, (d) => {
-    if (d[STORAGE_KEYS.inRoom]) clearRoomState();
+  void panelDropEndsRoom().then((ends) => {
+    if (ends) clearRoomState();
+  });
+});
+
+// The in-page panel has no browser chrome to close it, so the room ends by an
+// explicit close or with the tab that was holding it.
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.local.get(STORAGE_KEYS.panelTabId, (d) => {
+    if (d[STORAGE_KEYS.panelTabId] === tabId) clearRoomState();
   });
 });
 

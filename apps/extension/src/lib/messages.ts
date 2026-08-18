@@ -2,13 +2,20 @@ export type PopupMessage =
   | { type: 'WB_START_ROOM'; code: string; tabId: number }
   | { type: 'WB_JOIN_ROOM'; code: string; tabId: number }
   | { type: 'WB_LEAVE_ROOM'; tabId?: number }
+  // the popup can only make the synchronous native attempt before it closes, so
+  // the worker is asked to see it through and fall back if nothing opened
+  | { type: 'WB_ENSURE_PANEL'; tabId: number }
   // runs the Google OAuth flow in the background so it survives the popup closing
   | { type: 'WB_LOGIN' };
 
 export type ContentMessage =
   | { type: 'ROOM_STATE'; inRoom: boolean; memberCount: number }
   // fired from the landing page join click; the background opens the side panel, joins, then navigates
-  | { type: 'WB_JOIN_INVITE'; code: string; url: string };
+  | { type: 'WB_JOIN_INVITE'; code: string; url: string }
+  // a fresh document asking whether it was the one hosting the panel. Asked by
+  // the page rather than pushed by the worker: only the page knows when its own
+  // listener is up, and a push on tabs.onUpdated arrives before that.
+  | { type: 'WB_RESTORE_PANEL' };
 
 export type TabMessage =
   | { type: 'START_ROOM'; code: string; anchor: boolean }

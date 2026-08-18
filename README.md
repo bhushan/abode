@@ -23,7 +23,51 @@ No accounts. No database. Runs entirely inside Cloudflare's free tier, and the
 whole thing is one Worker.
 
 **Netflix, Crunchyroll and YouTube ship supported; anything else with an ordinary
-video player works once you allow it.**
+video player works once you allow it.** Chrome and Arc both, though they put the
+panel in different places. See [Browsers](#browsers).
+
+<a id="browsers"></a>
+
+## Browsers
+
+Chrome and Arc are both supported and share a room happily. What differs is where
+the panel lives, and that difference is larger than it sounds, because the panel
+is not decoration: the room's own socket lives in it, so a browser that cannot
+open one cannot chat, cannot show members, and cannot sync.
+
+| | Chrome | Arc |
+| --- | --- | --- |
+| Panel | native side panel | an extension iframe in the page, in a shadow root |
+| Owned by | the browser window | the document |
+| Survives navigation | by itself | put back deliberately, see below |
+| Closed by | the browser's own control | a close button we supply |
+
+Arc does not implement `chrome.sidePanel` and has said it will not, so three
+things have to be handled rather than assumed:
+
+- **The API answers anyway.** `sidePanel.open()` resolves and opens nothing, so a
+  panel counts only once its document actually exists (`runtime.getContexts`),
+  never because a call came back clean.
+- **The popup dies mid-fallback.** It closes itself immediately after asking, so
+  it only does the synchronous native attempt (which needs the click's user
+  activation and cannot be deferred) and hands the rest to the service worker,
+  which is still alive when the popup is not.
+- **Navigation destroys the panel.** Clicking through to the next episode takes
+  the socket with it, so a fresh document asks the worker whether it was the one
+  hosting, and gets it back. The dropped port that a navigation causes is not read
+  as "the panel was closed", because on Arc that would end the room every time
+  someone changed the page.
+
+If the page cannot host a panel at all (a browser settings page, say, where no
+content script runs), the panel opens as a small window instead. It is last
+because it hides behind the video and is gone in fullscreen.
+
+Arc itself cannot be automated: it permits one instance, ignores
+`--remote-debugging-port`, and quits when handed an automation profile. The e2e
+suite therefore reproduces its one distinguishing condition, a side panel API
+that answers and opens nothing, inside a real Chrome, and drives the real popup,
+worker and content script through it. `e2e/cross-browser.spec.ts` runs both
+surfaces in one room and checks chat and playback across them.
 
 ## Why this exists
 
@@ -138,7 +182,7 @@ pnpm build:ext          # production build into apps/extension/dist
 ```
 
 Then `chrome://extensions` → Developer mode → **Load unpacked** →
-`apps/extension/dist`.
+`apps/extension/dist`. In Arc the same page is at `arc://extensions`.
 
 ### Deploying your own relay
 
@@ -156,6 +200,7 @@ party is roughly 360 billed requests.
 ```bash
 pnpm test               # unit: extension under node, relay in real workerd
 pnpm test:e2e           # two Chrome profiles, real extension, real Durable Object
+                        # includes both panel surfaces, Chrome's and Arc's
 pnpm lint && pnpm typecheck
 ```
 

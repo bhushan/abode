@@ -106,3 +106,58 @@ test('leaving the room takes the in-page panel with it', async () => {
     await u?.close();
   }
 });
+
+/**
+ * Fullscreen is how anyone actually watches, and it is where an in-page panel is
+ * hardest to keep: only the fullscreen subtree paints, so a panel sitting
+ * elsewhere in the document simply vanishes. The top layer is the way out, and it
+ * matters that the panel gets there without being moved in the DOM, because
+ * re-appending an iframe reloads it and would drop the room's socket every time
+ * somebody hit F.
+ */
+test('the panel keeps painting when the video goes fullscreen', async () => {
+  let u: User | undefined;
+  try {
+    u = await launchUser();
+    const tabId = await videoTabId(u);
+    await expect(askPageToHost(u, tabId)).resolves.toBe(true);
+
+    const frameBefore = await u.video.evaluate(
+      (id) => document.getElementById(id)?.shadowRoot?.querySelector('iframe')?.getAttribute('src') ?? null,
+      PANEL_HOST_ID,
+    );
+    expect(frameBefore).toContain('/src/sidepanel/index.html');
+
+    // requestFullscreen needs a user gesture, and a real click is the only thing
+    // that carries one
+    await u.video.locator('body').click({ position: { x: 5, y: 5 } });
+    await u.video.evaluate(() => document.documentElement.requestFullscreen());
+    await expect.poll(() => u!.video.evaluate(() => document.fullscreenElement !== null), { timeout: 10_000 }).toBe(true);
+
+    // still painted: either lifted into the top layer, or inside the subtree that
+    // is the only thing being painted
+    await expect
+      .poll(
+        () =>
+          u!.video.evaluate((id) => {
+            const host = document.getElementById(id);
+            if (!host) return 'gone';
+            if (host.matches(':popover-open')) return 'top-layer';
+            return document.fullscreenElement?.contains(host) ? 'in-subtree' : 'orphaned';
+          }, PANEL_HOST_ID),
+        { timeout: 10_000 },
+      )
+      // named rather than negated: "not orphaned" would pass just as happily if
+      // the panel had disappeared altogether
+      .toMatch(/^(top-layer|in-subtree)$/);
+
+    // and the same iframe, not a reloaded one: a reload would have dropped the socket
+    const frameAfter = await u.video.evaluate(
+      (id) => document.getElementById(id)?.shadowRoot?.querySelector('iframe')?.getAttribute('src') ?? null,
+      PANEL_HOST_ID,
+    );
+    expect(frameAfter).toBe(frameBefore);
+  } finally {
+    await u?.close();
+  }
+});

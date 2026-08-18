@@ -2,6 +2,10 @@ export const STORAGE_KEYS = {
   inRoom: 'ab_inRoom',
   roomCode: 'ab_roomCode',
   anchorTabId: 'ab_anchorTabId',
+  // which tab is hosting the panel inside the page, on browsers that have no
+  // side panel of their own. A native panel belongs to the window and survives
+  // navigation; one living in a document dies with it, so it has to be put back.
+  panelTabId: 'ab_panelTabId',
 } as const;
 
 export interface RoomState {

@@ -9,7 +9,7 @@ import { buildInviteLink, STORAGE_KEYS } from "@/lib/room";
 import { getIdentity, setIdentityName, setIdentityTint, MAX_NAME, type Identity } from "@/lib/identity";
 import { getServerUrl } from "@/lib/server";
 import { pingServer } from "@/lib/socket";
-import { openPanel } from "@/lib/panel";
+import { requestPanel } from "@/lib/panel";
 import { canRunOn, hostOf, requestAccessTo } from "@/lib/site";
 import { startRoom } from "@/lib/startRoom";
 
@@ -62,7 +62,7 @@ export function Popup() {
   // side panel open at all.
   function start() {
     void startRoom(tabId, {
-      openPanel: (id) => void openPanel(id),
+      openPanel: (id) => void requestPanel(id),
       send: sendToBackground,
       close: () => window.close(),
     });
@@ -115,7 +115,7 @@ export function Popup() {
           copied={copied}
           onCopy={copy}
           onOpenPanel={() => {
-            if (tabId != null) void openPanel(tabId).then(() => window.close());
+            if (tabId != null) void requestPanel(tabId).then(() => window.close());
             else window.close();
           }}
           onLeave={() => void sendToBackground({ type: "WB_LEAVE_ROOM", tabId: tabId ?? undefined }).catch(() => {})}

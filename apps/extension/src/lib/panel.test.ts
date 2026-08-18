@@ -1,16 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { openPanel, PANEL_WINDOW } from './panel';
+import { ensurePanel, PANEL_WINDOW, panelDropEndsRoom, requestPanel, restorePanel } from './panel';
 
 /**
  * The room's socket lives in the panel, so a browser that cannot open one cannot
  * sync at all. Chrome's side panel is the right home for it (the video keeps its
- * full width), but Arc ships without `chrome.sidePanel` and has said it will not
- * add it, so there the panel has to go into the page itself.
+ * full width), but Arc's either does not exist or opens nothing, so there the
+ * panel has to go into the page itself.
  *
- * Order matters and is the whole point of these: native panel, then in-page, and
- * a detached window only when the page cannot host one (no content script on a
- * store page, say). A detached window is last because it hides behind the video
- * and disappears in fullscreen.
+ * The split these assert is the whole fix: the popup may only do what a dying
+ * document can finish, which is the synchronous native attempt, and everything
+ * that has to survive `window.close()` happens in the service worker.
  */
 
 type OpenFn = (opts: { tabId: number }) => Promise<void>;
@@ -19,24 +18,21 @@ interface Stub {
   sidePanel?: { open: OpenFn };
   /** what the tab's content script answers when asked to host the panel */
   inPage?: boolean | 'unreachable';
-  /**
-   * How many SIDE_PANEL contexts the browser reports on each successive look.
-   * `undefined` is a browser too old to be asked.
-   */
+  /** SIDE_PANEL contexts the browser reports on each successive look */
   contexts?: number[];
 }
 
 /** never actually waits: the settle delay is the code's, not the test's */
 const nowait = () => Promise.resolve();
 
-function stubChrome({ sidePanel, inPage = false, contexts }: Stub) {
+function stubChrome({ sidePanel, inPage = false, contexts = [0] }: Stub) {
   const create = vi.fn(() => Promise.resolve({ id: 1 }));
   const sendMessage = vi.fn(() =>
-    inPage === 'unreachable'
-      ? Promise.reject(new Error('no receiving end'))
-      : Promise.resolve(inPage),
+    inPage === 'unreachable' ? Promise.reject(new Error('no receiving end')) : Promise.resolve(inPage),
   );
-  const seen = [...(contexts ?? [])];
+  const toWorker = vi.fn(() => Promise.resolve());
+  const set = vi.fn(() => Promise.resolve());
+  const seen = [...contexts];
   const getContexts = vi.fn(() => {
     const n = seen.length > 1 ? (seen.shift() ?? 0) : (seen[0] ?? 0);
     return Promise.resolve(Array.from({ length: n }, () => ({ contextType: 'SIDE_PANEL' })));
@@ -45,61 +41,95 @@ function stubChrome({ sidePanel, inPage = false, contexts }: Stub) {
     sidePanel,
     tabs: { sendMessage },
     windows: { create },
+    storage: { local: { get: () => Promise.resolve({}), set } },
     runtime: {
+      sendMessage: toWorker,
+      getContexts,
       getURL: (p: string) => `chrome-extension://abode/${p}`,
       getManifest: () => ({ side_panel: { default_path: 'src/sidepanel/index.html' } }),
-      ...(contexts ? { getContexts } : {}),
     },
   });
-  return { create, sendMessage, getContexts };
+  return { create, sendMessage, toWorker, getContexts, set };
 }
 
-describe('openPanel', () => {
+describe('requestPanel', () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  it('uses the side panel when the browser has one', async () => {
+  /**
+   * The bug this exists for: the popup calls this and closes itself immediately,
+   * so anything awaited here dies unfinished. On Arc that was every path that
+   * could have worked, and the room came up with no panel and no socket.
+   */
+  it('does its whole job before returning, because the popup is about to close', () => {
     const open = vi.fn<OpenFn>(() => Promise.resolve());
-    const { create, sendMessage } = stubChrome({ sidePanel: { open }, inPage: true });
+    const { toWorker } = stubChrome({ sidePanel: { open } });
 
-    await expect(openPanel(7, nowait)).resolves.toBe('sidepanel');
+    requestPanel(7);
 
     expect(open).toHaveBeenCalledWith({ tabId: 7 });
-    // the page is left alone when the browser has a real panel
+    expect(toWorker).toHaveBeenCalledWith({ type: 'WB_ENSURE_PANEL', tabId: 7 });
+  });
+
+  it('still hands off when the browser has no side panel to try', () => {
+    const { toWorker } = stubChrome({ sidePanel: undefined });
+
+    requestPanel(7);
+
+    expect(toWorker).toHaveBeenCalledWith({ type: 'WB_ENSURE_PANEL', tabId: 7 });
+  });
+
+  it('hands off even when the side panel call throws outright', () => {
+    const open = vi.fn<OpenFn>(() => {
+      throw new Error('no such API');
+    });
+    const { toWorker } = stubChrome({ sidePanel: { open } });
+
+    expect(() => requestPanel(7)).not.toThrow();
+    expect(toWorker).toHaveBeenCalledWith({ type: 'WB_ENSURE_PANEL', tabId: 7 });
+  });
+});
+
+/**
+ * Order is the point: a real panel is left alone, then the page, and a detached
+ * window only when the page cannot host one (no content script on a store page,
+ * say). A window is last because it hides behind the video and is gone in
+ * fullscreen.
+ */
+describe('ensurePanel', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it('leaves a real side panel alone', async () => {
+    const { sendMessage, create, getContexts } = stubChrome({ contexts: [1], inPage: true });
+
+    await expect(ensurePanel(7, nowait)).resolves.toBe('sidepanel');
+
+    expect(getContexts).toHaveBeenCalledWith({ contextTypes: ['SIDE_PANEL'] });
+    // a second panel would be a second socket in the same room
     expect(sendMessage).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
   });
 
-  it('calls the side panel synchronously, while the click still counts as a gesture', () => {
-    const open = vi.fn<OpenFn>(() => Promise.resolve());
-    stubChrome({ sidePanel: { open } });
+  it('gives a slow panel a moment to register before giving up on it', async () => {
+    const { sendMessage } = stubChrome({ contexts: [0, 1], inPage: true });
 
-    void openPanel(7, nowait);
-
-    expect(open).toHaveBeenCalledTimes(1);
+    await expect(ensurePanel(7, nowait)).resolves.toBe('sidepanel');
+    expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it('puts the panel in the page when the browser has no side panel API', async () => {
-    const { create, sendMessage } = stubChrome({ sidePanel: undefined, inPage: true });
+  /** Arc: the API answers, the window never arrives. */
+  it('puts the panel in the page when no panel document ever turns up', async () => {
+    const { sendMessage, create } = stubChrome({ contexts: [0], inPage: true });
 
-    await expect(openPanel(7, nowait)).resolves.toBe('inpage');
+    await expect(ensurePanel(7, nowait)).resolves.toBe('inpage');
 
     expect(sendMessage).toHaveBeenCalledWith(7, { type: 'OPEN_PANEL' });
-    // no detached window: the in-page panel already worked
     expect(create).not.toHaveBeenCalled();
   });
 
-  it('puts the panel in the page when the side panel exists but refuses to open', async () => {
-    const open = vi.fn<OpenFn>(() => Promise.reject(new Error('not supported')));
-    const { create } = stubChrome({ sidePanel: { open }, inPage: true });
+  it('falls back to a window when the page will not host the panel', async () => {
+    const { create } = stubChrome({ contexts: [0], inPage: false });
 
-    await expect(openPanel(7, nowait)).resolves.toBe('inpage');
-    expect(create).not.toHaveBeenCalled();
-  });
-
-  it('falls back to a window when the page cannot host the panel', async () => {
-    const { create } = stubChrome({ sidePanel: undefined, inPage: false });
-
-    await expect(openPanel(7, nowait)).resolves.toBe('window');
+    await expect(ensurePanel(7, nowait)).resolves.toBe('window');
 
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -112,10 +142,21 @@ describe('openPanel', () => {
   });
 
   it('falls back to a window when there is no content script to answer', async () => {
-    const { create } = stubChrome({ sidePanel: undefined, inPage: 'unreachable' });
+    const { create } = stubChrome({ contexts: [0], inPage: 'unreachable' });
 
-    await expect(openPanel(7, nowait)).resolves.toBe('window');
+    await expect(ensurePanel(7, nowait)).resolves.toBe('window');
     expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('trusts the side panel when the browser is too old to be asked', async () => {
+    vi.stubGlobal('chrome', {
+      tabs: { sendMessage: vi.fn() },
+      windows: { create: vi.fn() },
+      runtime: { getURL: (p: string) => p, getManifest: () => ({}) },
+      storage: { local: { get: () => Promise.resolve({}), set: () => Promise.resolve() } },
+    });
+
+    await expect(ensurePanel(7, nowait)).resolves.toBe('sidepanel');
   });
 
   it('resolves rather than throwing when no surface can be opened at all', async () => {
@@ -123,54 +164,128 @@ describe('openPanel', () => {
       tabs: { sendMessage: vi.fn(() => Promise.reject(new Error('nope'))) },
       windows: { create: vi.fn(() => Promise.reject(new Error('nope'))) },
       runtime: {
+        getContexts: vi.fn(() => Promise.resolve([])),
         getURL: (p: string) => p,
         getManifest: () => ({ side_panel: { default_path: 'src/sidepanel/index.html' } }),
       },
+      storage: { local: { get: () => Promise.resolve({}), set: () => Promise.resolve() } },
     });
 
-    await expect(openPanel(7, nowait)).resolves.toBe('none');
+    await expect(ensurePanel(7, nowait)).resolves.toBe('none');
   });
+});
 
-  /**
-   * The one that matters on Arc. It ships `chrome.sidePanel`, resolves `open()`,
-   * and paints nothing, so a browser that says yes has to be taken at its actions
-   * rather than its word: no panel document, no panel.
-   */
-  it('falls back into the page when the browser opens nothing despite having the API', async () => {
-    const open = vi.fn<OpenFn>(() => Promise.resolve());
-    const { create, sendMessage } = stubChrome({ sidePanel: { open }, inPage: true, contexts: [0] });
+/**
+ * A native side panel belongs to the browser window and outlives whatever the
+ * page does. One hosted inside the page dies with the document, so a reload or a
+ * click through to the next episode would leave someone in a room with no panel,
+ * and the panel is where the room's own socket lives: they would vanish from the
+ * member list and stop receiving chat while still, confusingly, staying in sync.
+ */
+describe('restorePanel', () => {
+  beforeEach(() => vi.unstubAllGlobals());
 
-    await expect(openPanel(7, nowait)).resolves.toBe('inpage');
+  function stubStorage(store: Record<string, unknown>) {
+    const sendMessage = vi.fn(() => Promise.resolve(true));
+    const set = vi.fn((patch: Record<string, unknown>) => {
+      Object.assign(store, patch);
+      return Promise.resolve();
+    });
+    vi.stubGlobal('chrome', {
+      tabs: { sendMessage },
+      storage: { local: { get: (keys: string[]) => Promise.resolve(Object.fromEntries(keys.map((k) => [k, store[k]]))), set } },
+    });
+    return { sendMessage, set };
+  }
 
-    expect(open).toHaveBeenCalledWith({ tabId: 7 });
+  it('puts the panel back in the tab that was hosting it', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: true, ab_panelTabId: 7 });
+
+    await expect(restorePanel(7)).resolves.toBe(true);
     expect(sendMessage).toHaveBeenCalledWith(7, { type: 'OPEN_PANEL' });
-    expect(create).not.toHaveBeenCalled();
   });
 
-  it('keeps the native panel when the browser really opened one', async () => {
-    const open = vi.fn<OpenFn>(() => Promise.resolve());
-    const { sendMessage, getContexts } = stubChrome({ sidePanel: { open }, inPage: true, contexts: [1] });
+  it('leaves other tabs alone, or every tab would open its own panel and its own socket', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: true, ab_panelTabId: 7 });
 
-    await expect(openPanel(7, nowait)).resolves.toBe('sidepanel');
-
-    expect(getContexts).toHaveBeenCalledWith({ contextTypes: ['SIDE_PANEL'] });
-    // no second panel in the page: that would be two sockets in one room
+    await expect(restorePanel(9)).resolves.toBe(false);
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it('gives a slow panel a moment to register before giving up on it', async () => {
-    const open = vi.fn<OpenFn>(() => Promise.resolve());
-    const { sendMessage } = stubChrome({ sidePanel: { open }, inPage: true, contexts: [0, 1] });
+  it('does nothing once the room is over', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: false, ab_panelTabId: 7 });
 
-    await expect(openPanel(7, nowait)).resolves.toBe('sidepanel');
+    await expect(restorePanel(7)).resolves.toBe(false);
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it('trusts the side panel when the browser is too old to be asked', async () => {
-    const open = vi.fn<OpenFn>(() => Promise.resolve());
-    const { sendMessage } = stubChrome({ sidePanel: { open }, inPage: true });
+  it('does nothing on a browser whose panel was never in the page', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: true });
 
-    await expect(openPanel(7, nowait)).resolves.toBe('sidepanel');
+    await expect(restorePanel(7)).resolves.toBe(false);
     expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('survives a content script that is not there to answer', async () => {
+    const { sendMessage } = stubStorage({ ab_inRoom: true, ab_panelTabId: 7 });
+    sendMessage.mockImplementation(() => Promise.reject(new Error('no receiving end')));
+
+    await expect(restorePanel(7)).resolves.toBe(false);
+  });
+});
+
+describe('ensurePanel remembers where the panel went', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it('records the tab when the panel had to go into the page', async () => {
+    const { set } = stubChrome({ contexts: [0], inPage: true });
+
+    await expect(ensurePanel(7, nowait)).resolves.toBe('inpage');
+    expect(set).toHaveBeenCalledWith({ ab_panelTabId: 7 });
+  });
+
+  it('records nothing when the browser opened a real one', async () => {
+    const { set } = stubChrome({ contexts: [1] });
+
+    await expect(ensurePanel(7, nowait)).resolves.toBe('sidepanel');
+    expect(set).toHaveBeenCalledWith({ ab_panelTabId: null });
+  });
+
+  it('records nothing when it ended up in a window of its own', async () => {
+    const { set } = stubChrome({ contexts: [0], inPage: false });
+
+    await expect(ensurePanel(7, nowait)).resolves.toBe('window');
+    expect(set).toHaveBeenCalledWith({ ab_panelTabId: null });
+  });
+});
+
+/**
+ * A dropped panel port is how a closed panel announces itself, and closing the
+ * panel means leaving the room. That inference only holds for a panel the browser
+ * owns. One hosted in the page drops its port every time the page navigates, so
+ * reading that as "closed" ended the room under anyone who clicked through to the
+ * next episode.
+ */
+describe('panelDropEndsRoom', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  const store = (s: Record<string, unknown>) =>
+    vi.stubGlobal('chrome', {
+      storage: { local: { get: (keys: string[]) => Promise.resolve(Object.fromEntries(keys.map((k) => [k, s[k]]))) } },
+    });
+
+  it('ends the room when the browser owned the panel', async () => {
+    store({ ab_inRoom: true, ab_panelTabId: null });
+    await expect(panelDropEndsRoom()).resolves.toBe(true);
+  });
+
+  it('does not end the room when the panel lives in a page that just navigated', async () => {
+    store({ ab_inRoom: true, ab_panelTabId: 7 });
+    await expect(panelDropEndsRoom()).resolves.toBe(false);
+  });
+
+  it('has nothing to end when there is no room', async () => {
+    store({ ab_inRoom: false, ab_panelTabId: null });
+    await expect(panelDropEndsRoom()).resolves.toBe(false);
   });
 });
