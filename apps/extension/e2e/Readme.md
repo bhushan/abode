@@ -52,3 +52,21 @@ Notes worth keeping when something fails:
   the main site. Re-probe its capabilities before assuming a break is ours.
 - **Plain HTML5** is the fallback adapter, and the only one that needs the
   optional site permission granted first.
+
+## Link checks (before the link travels)
+
+The invite link is the only credential in this product, and its entire design
+depends on the fragment surviving a paste. Some messengers rewrite links.
+
+- [ ] Paste a link through WhatsApp, Telegram, iMessage and Slack, and confirm
+      the `#c=...&u=...` part arrives intact on the other side.
+- [ ] Reopen a link from a previous session and confirm it resolves to the same
+      room.
+- [ ] Confirm a link with `u=javascript:...` is refused rather than followed.
+- [ ] Confirm the relay's logs contain neither a room code nor a watched URL.
+
+If a messenger does strip fragments, the fix is **not** to move the code into a
+query parameter: that hands the relay the room code and the watched URL, which
+is exactly the property the current design exists to keep. The fallback is a
+short server-side redirect token carrying no meaning, and only if a real
+messenger forces it.
