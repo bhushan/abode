@@ -198,17 +198,26 @@ p strong { color: var(--cream); font-weight: 600; }
 }
 
 .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 16px; }
+
+/*
+ * Absolute marker, not a grid column. A grid item promotes every inline child
+ * of the step (the link, the <code>, the <strong>) into a grid item of its own,
+ * which breaks the sentence into a stack of fragments.
+ */
 .steps li {
   counter-increment: step;
-  display: grid;
-  grid-template-columns: 26px 1fr;
-  gap: 14px;
-  align-items: start;
+  position: relative;
+  padding-left: 40px;
+  min-height: 26px;
   color: var(--dim);
   font-size: 15px;
+  line-height: 1.65;
 }
 .steps li::before {
   content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 1px;
   font-family: var(--mono);
   font-size: 12px;
   color: var(--lamp);
@@ -220,6 +229,7 @@ p strong { color: var(--cream); font-weight: 600; }
   place-items: center;
   line-height: 1;
 }
+.steps strong { color: var(--cream); font-weight: 600; }
 
 code, .path {
   font-family: var(--mono);
