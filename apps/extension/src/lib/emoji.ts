@@ -9,6 +9,5 @@ export const REACTION_EMOJI = [
   '🐾', '🍯', '🌙', '⚡', '💖', '💔', '🫶', '🤡', '🥳', '😤',
 ];
 
-// the strip shown inline above the composer; the picker exposes the full set
-// the inline strip above the composer; REACTION_EMOJI is the full set
+// the inline strip above the composer; the picker exposes REACTION_EMOJI in full
 export const STRIP_EMOJI = ['🍿', '😂', '❤️', '😱', '🔥', '🎬', '👀'];
