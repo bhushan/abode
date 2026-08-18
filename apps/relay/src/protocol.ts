@@ -64,7 +64,8 @@ export type ClientMessage =
   | { ev: 'reaction:send'; emoji: string }
   | { ev: 'video:subscribe'; anchor?: boolean; key?: string; url?: string; title?: string; name?: string; seat?: string }
   | { ev: 'video:content'; key: string; url: string; title: string }
-  | { ev: 'video:control'; time: number; paused: boolean; rate?: number };
+  | { ev: 'video:control'; time: number; paused: boolean; rate?: number }
+  | { ev: 'time:ping'; t: number };
 
 type Rec = Record<string, unknown>;
 
@@ -180,6 +181,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       if (typeof data.rate === 'number') msg.rate = data.rate;
       return msg;
     }
+
+    // The room's clock. Echoed back with the relay's own time so a client can
+    // estimate how far its machine is from the room, which is what every drift
+    // number downstream is measured against.
+    case 'time:ping':
+      return num(data.t, 0, Number.MAX_SAFE_INTEGER) ? { ev: 'time:ping', t: data.t } : null;
 
     default:
       return null;

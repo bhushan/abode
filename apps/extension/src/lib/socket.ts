@@ -1,5 +1,6 @@
 import type { Member, ReplyRef } from './types';
 import type { Identity } from './identity';
+import { createRoomClock } from './clock';
 import { RelaySocket, type ConnStatus, type SocketFactory } from './relay-socket';
 
 export type { ConnStatus };
@@ -70,6 +71,14 @@ export interface VideoControl {
   paused: boolean;
   // optional so older clients without a rate still validate
   rate?: number;
+  /**
+   * The relay's clock when it stamped this, in milliseconds.
+   *
+   * Present on anything the relay sends, absent on a control this client is
+   * about to send. It is what turns "where the room was" into "where the room
+   * is", which is the whole basis of drift correction.
+   */
+  at?: number;
 }
 
 export interface VideoContentInfo {
@@ -90,6 +99,8 @@ export interface VideoChannelOpts {
 
 export interface VideoChannel {
   send: (c: VideoControl) => void;
+  /** The relay's idea of now, as best this client can tell. */
+  serverNow: () => number;
   // call after a same-tab (SPA) navigation so the relay knows our new content
   setContent: (c: VideoContentInfo) => void;
   // promote this socket to anchor; covers the storage-arm vs message race
@@ -107,15 +118,23 @@ export function joinVideoChannel(serverUrl: string, code: string, opts: VideoCha
   let content = opts.content;
 
   const socket = open(serverUrl, code);
+  const clock = createRoomClock((t) => socket.send({ ev: 'time:ping', t }));
   // Replayed on every reconnect using the *current* anchor and content, not the
   // values we started with: a dropped socket that comes back mid-episode should
   // resubscribe to what it is playing now.
   socket.setPrimer(() => ({ ev: 'video:subscribe', anchor, ...content, name: opts.name, seat: opts.seat }));
 
   socket.on('video:control', (f) =>
-    opts.onControl({ time: f.time as number, paused: f.paused as boolean, rate: f.rate as number | undefined }),
+    opts.onControl({
+      time: f.time as number,
+      paused: f.paused as boolean,
+      rate: f.rate as number | undefined,
+      at: f.at as number | undefined,
+    }),
   );
   socket.on('reaction:show', (f) => opts.onReaction({ emoji: f.emoji as string }));
+  socket.on('time:pong', (f) => clock.onPong(f.t as number, f.s as number));
+  clock.start();
 
   return {
     send: (c) => socket.send({ ev: 'video:control', time: c.time, paused: c.paused, rate: c.rate }),
@@ -128,7 +147,11 @@ export function joinVideoChannel(serverUrl: string, code: string, opts: VideoCha
       content = c;
       socket.send({ ev: 'video:subscribe', anchor: true, ...c, name: opts.name, seat: opts.seat });
     },
-    disconnect: () => socket.close(),
+    serverNow: () => clock.serverNow(),
+    disconnect: () => {
+      clock.stop();
+      socket.close();
+    },
   };
 }
 

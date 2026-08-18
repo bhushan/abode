@@ -30,8 +30,8 @@ function getNetflixPlayer(): NetflixPlayer | null {
 
 window.addEventListener('message', (e) => {
   if (e.source !== window) return;
-  const d = e.data as { __wbnf?: number; kind?: string; time?: number } | undefined;
-  if (!d || d.__wbnf !== 1 || d.kind !== 'seek' || typeof d.time !== 'number') return;
+  const d = e.data as { __abnf?: number; kind?: string; time?: number } | undefined;
+  if (!d || d.__abnf !== 1 || d.kind !== 'seek' || typeof d.time !== 'number') return;
   try {
     getNetflixPlayer()?.seek(Math.round(d.time * 1000)); // netflix wants milliseconds
   } catch {

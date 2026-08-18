@@ -8,6 +8,8 @@ import { useRoomState } from "@/hooks/useRoomState";
 import { useVideoState } from "@/hooks/useVideoState";
 import { getIdentity, tintOf, type Identity } from "@/lib/identity";
 import { linkify } from "@/lib/linkify";
+import { shouldOfferFollow } from "@/lib/follow";
+import { getActiveTab } from "@/lib/messages";
 import { getSeat } from "@/lib/seat";
 import { getServerUrl } from "@/lib/server";
 import { formatTimecode } from "@/lib/timecode";
@@ -26,6 +28,7 @@ export function SidePanel() {
   const [content, setContent] = useState<VideoContentInfo | null>(null);
   const [typers, setTypers] = useState<Map<string, string>>(new Map());
   const [locked, setLocked] = useState(false);
+  const [tabUrl, setTabUrl] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
   const conn = useRef<RoomConnection | null>(null);
@@ -39,6 +42,15 @@ export function SidePanel() {
 
   useEffect(() => {
     void getIdentity().then(setIdentity);
+  }, []);
+
+  // The room can move on to the next episode without this tab. Polled rather
+  // than pushed, because a tab navigating is not an event the panel receives.
+  useEffect(() => {
+    const read = () => void getActiveTab().then((t) => setTabUrl(t?.url ?? null));
+    read();
+    const iv = setInterval(read, 2_000);
+    return () => clearInterval(iv);
   }, []);
 
   const push = useCallback((m: Omit<Message, "id">) => {
@@ -124,6 +136,17 @@ export function SidePanel() {
 
       <MemberRail members={members} />
 
+      {shouldOfferFollow(content, tabUrl) ? (
+        <FollowBanner
+          title={content!.title}
+          onFollow={() => {
+            void getActiveTab().then((t) => {
+              if (t?.id != null) void chrome.tabs.update(t.id, { url: content!.url });
+            });
+          }}
+        />
+      ) : null}
+
       <Feed messages={messages} tintFor={tintFor} />
 
       {typers.size > 0 ? (
@@ -175,6 +198,32 @@ export function SidePanel() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The room moved on and this tab did not.
+ *
+ * An offer rather than a navigation: moving somebody's tab out from under them
+ * loses their place, and two people are sometimes on different pages on purpose.
+ */
+function FollowBanner({ title, onFollow }: { title: string; onFollow: () => void }) {
+  return (
+    <div className="flex items-center gap-2 border-b border-ab-edge bg-ab-raised px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <div className="text-[10.5px] font-semibold uppercase tracking-[.09em] text-ab-faint">Room moved on</div>
+        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[12.5px] text-ab-cream" title={title}>
+          {title}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onFollow}
+        className="shrink-0 rounded-lg bg-ab-lamp px-2.5 py-1.5 text-[12px] font-semibold text-ab-ink transition-all hover:brightness-105 active:scale-95"
+      >
+        Catch up
+      </button>
     </div>
   );
 }

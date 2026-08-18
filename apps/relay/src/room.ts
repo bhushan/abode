@@ -129,6 +129,10 @@ export class RoomDO extends DurableObject<Env> {
         return this.onContent(ws, att, { key: msg.key, url: msg.url, title: msg.title });
       case 'video:control':
         return this.onControl(ws, att, msg.time, msg.paused, msg.rate);
+      case 'time:ping':
+        // Date.now() in a Worker advances only across I/O, and a message arriving
+        // is I/O, so this is genuinely the moment the ping landed.
+        return this.sendTo(ws, { ev: 'time:pong', t: msg.t, s: Date.now() });
     }
   }
 
@@ -249,15 +253,7 @@ export class RoomDO extends DurableObject<Env> {
     }
 
     // Hand the newcomer the room's current playback position.
-    if (room.video) {
-      const elapsed = room.video.paused ? 0 : (Date.now() - room.video.updatedAt) / 1000;
-      this.sendTo(ws, {
-        ev: 'video:control',
-        time: room.video.time + elapsed,
-        paused: room.video.paused,
-        rate: room.video.rate,
-      });
-    }
+    this.resync(ws, room);
   }
 
   private async onContent(ws: WebSocket, att: Att, content: Content): Promise<void> {
@@ -284,9 +280,12 @@ export class RoomDO extends DurableObject<Env> {
     // Carry the last known rate when a control omits it, so play/pause does not
     // silently reset playback speed for everyone.
     const nextRate = rate ?? prev?.rate;
-    room.video = { time, paused, rate: nextRate, updatedAt: Date.now() };
+    // One reading, used for both the stored stamp and the wire, so nobody has to
+    // reconcile two times that differ by an await.
+    const now = Date.now();
+    room.video = { time, paused, rate: nextRate, updatedAt: now };
     await this.save();
-    this.broadcast({ ev: 'video:control', time, paused, rate: nextRate }, ws);
+    this.broadcast({ ev: 'video:control', time, paused, rate: nextRate, at: now }, ws);
   }
 
   // ---- helpers ------------------------------------------------------------
@@ -319,15 +318,24 @@ export class RoomDO extends DurableObject<Env> {
     });
   }
 
-  /** Send one socket the room's current position, without disturbing anyone else. */
+  /**
+   * Send one socket the room's current position, without disturbing anyone else.
+   *
+   * Used both for a newcomer catching up and for a guest whose control the lock
+   * refused. `at` is the relay's clock at the moment of sending, which is what
+   * lets the client keep projecting forward instead of freezing on this number.
+   */
   private resync(ws: WebSocket, room: RoomState): void {
     if (!room.video) return;
-    const elapsed = room.video.paused ? 0 : (Date.now() - room.video.updatedAt) / 1000;
+    const now = Date.now();
+    // Wall time times rate: at half speed the film has covered half the ground.
+    const elapsed = room.video.paused ? 0 : ((now - room.video.updatedAt) / 1000) * (room.video.rate ?? 1);
     this.sendTo(ws, {
       ev: 'video:control',
       time: room.video.time + elapsed,
       paused: room.video.paused,
       rate: room.video.rate,
+      at: now,
     });
   }
 

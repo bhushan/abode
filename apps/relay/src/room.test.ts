@@ -604,3 +604,79 @@ describe('control lock', () => {
     host.close();
   });
 });
+
+/**
+ * The room's clock.
+ *
+ * Every drift number the extension computes is a difference between two
+ * machines' clocks, so the relay's clock is the one the room agrees on and each
+ * client measures its distance from it by round trip.
+ */
+describe('shared clock', () => {
+  it('echoes a ping back with the relay time beside it', async () => {
+    const a = await Client.connect('ABODE-CLK001');
+    a.send({ ev: 'time:ping', t: 12_345 });
+
+    const pong = await a.next('time:pong');
+    expect(pong.t).toBe(12_345); // the client's own stamp, untouched
+    expect(typeof pong.s).toBe('number');
+    expect(pong.s).toBeGreaterThan(1_600_000_000_000);
+
+    a.close();
+  });
+
+  it('answers only the asker, since a ping is one client measuring one link', async () => {
+    const code = 'ABODE-CLK002';
+    const a = await Client.connect(code);
+    const b = await Client.connect(code);
+    a.send({ ev: 'time:ping', t: 1 });
+    await settle();
+
+    expect(a.all('time:pong')).toHaveLength(1);
+    expect(b.all('time:pong')).toHaveLength(0);
+
+    a.close();
+    b.close();
+  });
+
+  it('stamps every control with the relay clock, so a receiver can keep projecting', async () => {
+    const code = 'ABODE-CLK003';
+    const a = await Client.connect(code);
+    const b = await Client.connect(code);
+    a.send({ ev: 'video:subscribe', anchor: true, key: 'k', url: 'https://x/1', title: 'One', name: 'Ada' });
+    await settle();
+
+    a.send({ ev: 'video:control', time: 30, paused: false });
+    const control = await b.next('video:control');
+
+    expect(control.time).toBe(30);
+    expect(typeof control.at).toBe('number');
+    expect(control.at).toBeGreaterThan(1_600_000_000_000);
+
+    a.close();
+    b.close();
+  });
+
+  it('advances a late joiner by wall time times rate, not by wall time alone', async () => {
+    const code = 'ABODE-CLK004';
+    const a = await Client.connect(code);
+    a.send({ ev: 'video:subscribe', anchor: true, key: 'k', url: 'https://x/1', title: 'One', name: 'Ada' });
+    await settle();
+    a.send({ ev: 'video:control', time: 100, paused: false, rate: 0.5 });
+    await settle();
+
+    const b = await Client.connect(code);
+    b.send({ ev: 'video:subscribe', name: 'Bo' });
+    const caught = await b.next('video:control');
+
+    // half speed: a moment of wall time is half a moment of film. The old code
+    // handed over wall seconds regardless, which sent every slow-motion joiner
+    // ahead of the room.
+    expect(caught.rate).toBe(0.5);
+    expect(caught.time as number).toBeGreaterThanOrEqual(100);
+    expect(caught.time as number).toBeLessThan(100.6);
+
+    a.close();
+    b.close();
+  });
+});
