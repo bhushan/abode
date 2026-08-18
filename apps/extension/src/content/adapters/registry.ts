@@ -2,6 +2,7 @@ import type { PlayerAdapter } from './contract';
 import { crunchyroll } from './crunchyroll';
 import { html5 } from './html5';
 import { netflix } from './netflix';
+import { youtube } from './youtube';
 
 /**
  * Which adapter drives this page.
@@ -10,7 +11,7 @@ import { netflix } from './netflix';
  * degrades to plain HTML5 playback rather than failing. Adding a platform is
  * one import, one line here, and one fixture in the conformance suite.
  */
-export const ADAPTERS: readonly PlayerAdapter[] = [netflix, crunchyroll];
+export const ADAPTERS: readonly PlayerAdapter[] = [netflix, crunchyroll, youtube];
 
 export const FALLBACK: PlayerAdapter = html5;
 

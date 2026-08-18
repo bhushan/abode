@@ -22,8 +22,8 @@ what time it is where you are.
 No accounts. No database. Runs entirely inside Cloudflare's free tier, and the
 whole thing is one Worker.
 
-**Netflix and Crunchyroll ship supported; anything else with an ordinary video
-player works once you allow it.**
+**Netflix, Crunchyroll and YouTube ship supported; anything else with an ordinary
+video player works once you allow it.**
 
 ## Why this exists
 
@@ -80,7 +80,9 @@ weekend.
 Netflix and Crunchyroll are Widevine-protected, so no extension can read or relay
 the video itself, and any that claims to is lying. Each person plays the film on
 their own subscription and only control state crosses the wire. That is how
-Teleparty works too, and it is also why this costs nothing to run.
+Teleparty works too, and it is also why this costs nothing to run. YouTube needs
+no subscription, but the rule does not change: everyone plays their own copy, and
+only the position is shared.
 
 ## Architecture
 

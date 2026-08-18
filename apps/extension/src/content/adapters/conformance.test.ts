@@ -4,6 +4,7 @@ import { ALL_ADAPTERS, adapterFor, FALLBACK } from './registry';
 import { crunchyroll } from './crunchyroll';
 import { html5 } from './html5';
 import { netflix } from './netflix';
+import { youtube } from './youtube';
 
 /**
  * One suite, every adapter.
@@ -36,6 +37,14 @@ const FIXTURES: Fixture[] = [
     hostname: 'www.crunchyroll.com',
     href: 'https://www.crunchyroll.com/watch/GRDQ2K3Z/the-first-episode',
     contentId: 'crunchyroll:GRDQ2K3Z',
+    foreign: 'www.netflix.com',
+  },
+  {
+    adapter: youtube,
+    hostname: 'www.youtube.com',
+    // t= is where this viewer happens to be, not what everyone is watching
+    href: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s&list=PL123',
+    contentId: 'youtube:dQw4w9WgXcQ',
     foreign: 'www.netflix.com',
   },
   {
@@ -237,5 +246,41 @@ describe('registry', () => {
   it('never claims a lookalike host', () => {
     // endsWith on a bare domain would match "notnetflix.com"; it must not
     expect(adapterFor({ hostname: 'evil-netflix.com.attacker.test' }).id).toBe(FALLBACK.id);
+  });
+});
+
+/**
+ * YouTube arrives at the same video down four different URLs, and a room where
+ * two people hold different ids for one video is a room that never syncs.
+ */
+describe('youtube content ids', () => {
+  const id = (href: string) => youtube.attach(new FakeVideo() as unknown as HTMLVideoElement, { location: { href, hostname: new URL(href).hostname } }).contentId();
+
+  it.each([
+    ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'watch page'],
+    ['https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90s', 'someone else deep in it'],
+    ['https://m.youtube.com/watch?v=dQw4w9WgXcQ', 'mobile'],
+    ['https://youtu.be/dQw4w9WgXcQ?si=abc', 'share link'],
+    ['https://www.youtube.com/embed/dQw4w9WgXcQ', 'embedded elsewhere'],
+    ['https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', 'the no-cookie embed host'],
+  ])('reads one id out of %s (%s)', (href) => {
+    expect(id(href)).toBe('youtube:dQw4w9WgXcQ');
+  });
+
+  it('keeps shorts and live apart from each other', () => {
+    expect(id('https://www.youtube.com/shorts/abcdefghijk')).toBe('youtube:abcdefghijk');
+    expect(id('https://www.youtube.com/live/zyxwvutsrqp')).toBe('youtube:zyxwvutsrqp');
+  });
+
+  it('falls back to the url when there is no video id to find', () => {
+    // contentKey's own normalising, www and all: a page with no video is still
+    // the same page for everyone looking at it
+    expect(id('https://www.youtube.com/feed/subscriptions')).toBe('youtube.com/feed/subscriptions');
+  });
+
+  it('claims the hosts youtube actually serves players from', () => {
+    for (const hostname of ['www.youtube.com', 'm.youtube.com', 'youtu.be', 'www.youtube-nocookie.com']) {
+      expect(adapterFor({ hostname }).id).toBe('youtube');
+    }
   });
 });

@@ -9,7 +9,7 @@ assignees: ''
 **What happened, and what you expected instead**
 
 **Where**
-- Site: <!-- netflix, crunchyroll, or another site you allowed -->
+- Site: <!-- netflix, crunchyroll, youtube, or another site you allowed -->
 - Browser and version:
 - Abode version: <!-- shown on chrome://extensions -->
 

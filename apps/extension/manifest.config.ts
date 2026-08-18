@@ -15,7 +15,13 @@ const icons = {
  * review, and it reads to a person installing this as "every page you visit".
  * A named list reads as what it is, and each new platform adds one line.
  */
-const PLATFORMS = ['*://*.netflix.com/*', '*://*.crunchyroll.com/*'];
+const PLATFORMS = [
+  '*://*.netflix.com/*',
+  '*://*.crunchyroll.com/*',
+  '*://*.youtube.com/*',
+  // the privacy-preserving embed host, so a player framed from it is still ours
+  '*://*.youtube-nocookie.com/*',
+];
 
 /** Loopback, for the e2e suite and for anyone running their own relay. */
 const LOCAL = ['http://localhost/*', 'http://127.0.0.1/*'];

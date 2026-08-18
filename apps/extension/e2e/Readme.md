@@ -29,18 +29,18 @@ Fakes prove the contract. Only the real site proves the platform, so every
 adapter gets run through this once against a live session, and again whenever
 that platform starts misbehaving. Two accounts, two machines or two profiles.
 
-| | Netflix | Crunchyroll | plain HTML5 |
-| --- | --- | --- | --- |
-| Room starts from the popup, invite link opens on the other side | | | |
-| Play propagates | | | |
-| Pause propagates | | | |
-| Seek forward propagates | | | |
-| Seek back propagates | | | |
-| A throttled client closes the gap without a visible scrub | | | |
-| Episode change offers "Catch up" on the other side | | n/a | n/a |
-| Fullscreen: reactions and the panel still paint | | | |
-| Host lock stops a guest and snaps them back | | | |
-| Chat and reactions both ways | | | |
+| | Netflix | Crunchyroll | YouTube | plain HTML5 |
+| --- | --- | --- | --- | --- |
+| Room starts from the popup, invite link opens on the other side | | | | |
+| Play propagates | | | | |
+| Pause propagates | | | | |
+| Seek forward propagates | | | | |
+| Seek back propagates | | | | |
+| A throttled client closes the gap without a visible scrub | | | | |
+| Episode change offers "Catch up" on the other side | | n/a | | n/a |
+| Fullscreen: reactions and the panel still paint | | | | |
+| Host lock stops a guest and snaps them back | | | | |
+| Chat and reactions both ways | | | | |
 
 Notes worth keeping when something fails:
 
@@ -50,6 +50,10 @@ Notes worth keeping when something fails:
 - **Crunchyroll** proves the cross-frame path: its Vilos player is served from
   `static.crunchyroll.com` inside an iframe, and it can change independently of
   the main site. Re-probe its capabilities before assuming a break is ours.
+- **YouTube** is the one people will try first, and the one with an obstacle the
+  others do not have: an ad break replaces the `<video>` on one person's screen
+  and not the other's, so a room can drift by the length of the break and settle
+  again after it. Check a video with a mid-roll before calling a drift a bug.
 - **Plain HTML5** is the fallback adapter, and the only one that needs the
   optional site permission granted first.
 

@@ -309,7 +309,7 @@ function Idle({
 
         <p className="mt-2 text-[12px] leading-[1.5] text-ab-dim">
           {needsSite
-            ? "Abode ships with Netflix and Crunchyroll built in. Any other site needs your say-so first."
+            ? "Abode ships with Netflix, Crunchyroll and YouTube built in. Any other site needs your say-so first."
             : hasVideo === false
               ? "Open something to watch first, then start a room here."
               : reachable === false
