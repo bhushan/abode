@@ -19,6 +19,11 @@ export default defineConfig({
     hmr: { port: 5173 },
   },
   build: {
+    // Chrome will not reuse a modulepreload emitted into an extension page: it
+    // reports a "cross-world extension resource mismatch" and fetches the chunk
+    // a second time. There is nothing to hide behind a preload here anyway, the
+    // assets are on disk, so do not emit them.
+    modulePreload: false,
     rollupOptions: {
       input: {
       },
