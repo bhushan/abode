@@ -1,0 +1,38 @@
+# The Cloudflare Worker that is the room. Dispatched by hand:
+#
+#   gh workflow run relay-deploy.yml --ref main
+#
+# Needs a CLOUDFLARE_API_TOKEN secret with Workers Scripts:Edit. Deploying from
+# a laptop with `pnpm deploy:relay` is equally fine and is how it usually goes.
+name: Deploy relay
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The relay is the room; a broken deploy is a broken evening.
+      - name: Test the relay against real workerd
+        run: pnpm --filter @abode/relay test
+
+      - name: Deploy
+        run: pnpm --filter @abode/relay exec wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

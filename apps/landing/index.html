@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Abode · Watch together, in sync</title>
+    <meta
+      name="description"
+      content="A browser extension that keeps two people on the same frame. Netflix and Crunchyroll, chat and reactions, no accounts, free to run. Open source."
+    />
+    <meta name="theme-color" content="#17141b" />
+    <meta name="color-scheme" content="dark" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Abode" />
+    <meta property="og:title" content="Abode · Watch together, in sync" />
+    <meta
+      property="og:description"
+      content="One room for two places. Synced playback, chat and reactions, no accounts."
+    />
+
+    <link rel="icon" type="image/svg+xml" href="abode.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="icon32.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="masthead">
+        <svg viewBox="0 0 100 100" role="img" aria-label="Abode">
+          <defs>
+            <linearGradient id="stem" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#1a73e8" />
+              <stop offset="100%" stop-color="#d97706" />
+            </linearGradient>
+          </defs>
+          <g fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M52 14 L14 86" stroke="#1a73e8" />
+            <path d="M26 62 H52" stroke="#1a73e8" />
+            <path d="M52 14 C80 17 80 45 52 50 C86 53 86 83 52 86" stroke="#d97706" />
+            <path d="M52 14 V86" stroke="url(#stem)" />
+          </g>
+        </svg>
+        <span class="wordmark">abode</span>
+        <nav>
+          <a href="#install">Install</a>
+          <a href="support.html">Support</a>
+          <a href="https://github.com/bhushan/abode">GitHub</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero">
+          <h1>One room for two places.</h1>
+          <p class="lede">
+            A browser extension that keeps two people on the same frame of the same film, wherever
+            they are. Play, pause and seek with the site's own player; everybody follows.
+          </p>
+
+          <!-- The instrument line from the panel: the one thing this product is for. -->
+          <div class="strip" aria-label="What the side panel looks like">
+            <div class="strip-line">
+              <span class="dot" aria-hidden="true"></span>
+              <span class="state">In sync</span>
+              <span class="timecode" id="tc">00:12:04</span>
+            </div>
+            <div class="strip-title">Dune: Part Two</div>
+            <div class="strip-chat">
+              <div class="msg">
+                <span class="at">12:03</span>
+                <span class="who" style="color: #7fb2e5">arjun</span>
+                <span>this shot is insane</span>
+              </div>
+              <div class="msg">
+                <span class="at">12:11</span>
+                <span class="who" style="color: #e8a94f">you</span>
+                <span>the score here</span>
+              </div>
+              <div class="msg system">arjun skipped ahead to 14:20</div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>What it does</h2>
+          <div class="points">
+            <div class="point">
+              <h3>Stays locked</h3>
+              <p>
+                Small drift is closed by playing a fraction faster or slower, which nobody notices.
+                Only a real gap gets a jump. Most watch-party tools scrub every time your network
+                hiccups.
+              </p>
+            </div>
+            <div class="point">
+              <h3>Says so</h3>
+              <p>
+                The panel reports whether you are actually together. When it slips you can see it
+                slip, instead of wondering whether the app broke or your wifi did.
+              </p>
+            </div>
+            <div class="point">
+              <h3>Chat in timecode</h3>
+              <p>
+                Messages are stamped with where you are in the film, not what time it is where you
+                are, so the log reads back like notes.
+              </p>
+            </div>
+            <div class="point">
+              <h3>Host can steer</h3>
+              <p>
+                Turn on host-only control and playback stops being a fight. It is enforced by the
+                room itself, not by hiding a button.
+              </p>
+            </div>
+            <div class="point">
+              <h3>No accounts</h3>
+              <p>
+                There is no sign-up, no sign-in, and no profile. You pick a name if you feel like it.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>The link is the whole thing</h2>
+          <p>
+            Starting a room gives you one link. Whoever opens it lands on what you are watching and
+            joins the room. The same link works again next weekend.
+          </p>
+          <p>
+            The room code and the destination ride in the link's
+            <strong>fragment</strong>, the part after the <code>#</code>, which browsers never send
+            to a server. So the relay learns neither which room you are joining nor what you are
+            about to watch. That is a property of how the link is built, not a promise in a policy.
+          </p>
+          <p>
+            Nothing is stored about you anywhere. A room lives in memory while somebody is in it and
+            is gone when the last person leaves.
+          </p>
+        </section>
+
+        <section>
+          <h2>Everyone brings their own account</h2>
+          <p>
+            Netflix and Crunchyroll are DRM-protected, so no extension can read or relay the video
+            itself, and any that claimed to would be lying. Everyone plays the film on their own
+            subscription; only the position crosses the wire. That is also why it costs nothing to
+            run.
+          </p>
+          <div class="sites">
+            <span class="site">Netflix</span>
+            <span class="site">Crunchyroll</span>
+            <span class="site">Any site you allow</span>
+            <span class="site pending">Hotstar, Prime Video, Disney+ later</span>
+          </div>
+          <p>
+            Support for a service is one small file, so the list grows by request. Anything else with
+            an ordinary video player works once you grant Abode access to that site, which it asks
+            for at the moment you need it rather than at install.
+          </p>
+        </section>
+
+        <section id="install">
+          <h2>Install</h2>
+          <p>
+            Abode is not on the Chrome Web Store yet. Until it is, it loads as an unpacked extension,
+            which takes about a minute.
+          </p>
+          <ol class="steps">
+            <li>
+              Download the latest build from
+              <a href="https://github.com/bhushan/abode/releases">Releases</a> and unzip it, or build
+              it yourself with <code>pnpm build:ext</code>.
+            </li>
+            <li>Open <span class="path">chrome://extensions</span> and turn on Developer mode.</li>
+            <li>Click <strong>Load unpacked</strong> and pick the unzipped folder.</li>
+            <li>
+              Open something to watch, click the Abode icon, then
+              <strong>Start watching together</strong>. Send the link.
+            </li>
+          </ol>
+          <p style="margin-top: 26px">
+            <a class="cta" href="https://github.com/bhushan/abode">Get it on GitHub</a>
+          </p>
+        </section>
+
+        <section>
+          <h2>Run your own</h2>
+          <p>
+            The room server is a single Cloudflare Worker with a Durable Object. It fits inside the
+            free plan, and the whole thing is two commands.
+          </p>
+          <pre><code>pnpm install
+pnpm --filter @abode/relay exec wrangler deploy</code></pre>
+          <p>
+            Then point the extension at it in the popup's server setting. There is no database,
+            because there is nothing to store.
+          </p>
+        </section>
+      </main>
+
+      <footer>
+        <p>
+          <a href="https://github.com/bhushan/abode">Source</a> ·
+          <a href="privacy.html">Privacy</a> ·
+          <a href="support.html">Support</a>
+        </p>
+        <p>
+          Apache-2.0. A derivative work of
+          <a href="https://github.com/halitsever/watchbear">Watchbear</a> by Halit Sever, with
+          sign-in removed, the server replaced, and the interface rebuilt.
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      // The timecode ticks, because a still one is a screenshot and this is the
+      // one thing on the page that is supposed to be alive.
+      (function () {
+        var el = document.getElementById('tc');
+        if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var t = 12 * 60 + 4;
+        var pad = function (n) {
+          return String(n).padStart(2, '0');
+        };
+        setInterval(function () {
+          t += 1;
+          el.textContent = '00:' + pad(Math.floor(t / 60)) + ':' + pad(t % 60);
+        }, 1000);
+      })();
+    </script>
+  </body>
+</html>

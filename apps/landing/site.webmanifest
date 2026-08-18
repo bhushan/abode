@@ -1,0 +1,12 @@
+{
+  "name": "Abode",
+  "short_name": "Abode",
+  "description": "Watch together, in sync.",
+  "icons": [
+    { "src": "icon32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "icon128.png", "sizes": "128x128", "type": "image/png" }
+  ],
+  "theme_color": "#17141b",
+  "background_color": "#17141b",
+  "display": "standalone"
+}

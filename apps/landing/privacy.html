@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy · Abode</title>
+    <meta name="description" content="What Abode collects, which is nothing, and why the design makes that checkable." />
+    <meta name="theme-color" content="#17141b" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="abode.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="masthead">
+        <svg viewBox="0 0 100 100" role="img" aria-label="Abode">
+          <g fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M52 14 L14 86" stroke="#1a73e8" />
+            <path d="M26 62 H52" stroke="#1a73e8" />
+            <path d="M52 14 C80 17 80 45 52 50 C86 53 86 83 52 86" stroke="#d97706" />
+          </g>
+        </svg>
+        <span class="wordmark">abode</span>
+        <nav><a href="index.html">Home</a><a href="support.html">Support</a></nav>
+      </header>
+
+      <main>
+        <section class="hero" style="padding-bottom: 40px">
+          <h1>Privacy</h1>
+          <p class="lede">
+            There are no accounts, no analytics and no database. This page explains what that means
+            concretely, and where you can check it for yourself.
+          </p>
+        </section>
+
+        <section>
+          <h2>What is collected</h2>
+          <p>
+            Nothing. Abode has no user records, no logins, no cookies of its own, no analytics and
+            no third-party scripts. Nothing about you is stored anywhere, because there is nowhere
+            to store it.
+          </p>
+        </section>
+
+        <section>
+          <h2>What stays on your machine</h2>
+          <p>
+            The display name and colour you pick, whether you are currently in a room, and that
+            room's code. These live in the browser's own extension storage. Clearing the extension's
+            data removes them. None of it is sent anywhere except the name and colour, which the
+            other people in your room see, because that is what they are for.
+          </p>
+        </section>
+
+        <section>
+          <h2>What crosses the wire</h2>
+          <p>
+            While you are in a room: playback position, whether the video is playing, the playback
+            speed, the page title of what is being watched, chat messages, and reactions. All of it
+            goes to the relay and straight out to the other people in the same room. None of it is
+            written down.
+          </p>
+          <p>
+            A room exists only while somebody is connected to it. When the last person leaves, it is
+            gone, along with everything it was holding.
+          </p>
+        </section>
+
+        <section>
+          <h2>What the relay cannot see</h2>
+          <p>
+            The room code and the video address travel in the invite link's
+            <strong>fragment</strong>, the part after the <code>#</code>. Browsers never transmit a
+            fragment to a server, so the relay never receives it. It is not a policy commitment; it
+            is where the data physically goes.
+          </p>
+          <p>
+            The relay does see the IP address any connection comes from, as every web server does,
+            and it counts connections per address for a minute at a time to make guessing room codes
+            expensive. That count is held in memory and never written down.
+          </p>
+        </section>
+
+        <section>
+          <h2>What the extension can reach</h2>
+          <p>
+            Abode asks for access to the services it ships support for, currently Netflix and
+            Crunchyroll, and nothing else. If you want to sync some other site it asks you then, for
+            that one site, and you can take the permission back in Chrome's settings at any time
+            without reinstalling.
+          </p>
+          <p>
+            It reads the position of the video on the page and writes to it. It does not read page
+            content, form fields, or anything else.
+          </p>
+        </section>
+
+        <section>
+          <h2>Checking any of this</h2>
+          <p>
+            The whole thing is open source under Apache-2.0, including the relay. If you would rather
+            not take anyone's word for it, deploy your own relay and point the extension at it: the
+            popup has a server setting for exactly that.
+          </p>
+          <p><a href="https://github.com/bhushan/abode">github.com/bhushan/abode</a></p>
+        </section>
+      </main>
+
+      <footer>
+        <p><a href="index.html">Home</a> · <a href="support.html">Support</a> · <a href="https://github.com/bhushan/abode">Source</a></p>
+      </footer>
+    </div>
+  </body>
+</html>

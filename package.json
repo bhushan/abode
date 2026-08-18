@@ -1,0 +1,37 @@
+{
+  "name": "abode",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Abode monorepo: browser extension + Cloudflare relay",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:ext": "pnpm --filter @abode/extension dev",
+    "build:ext": "pnpm --filter @abode/extension build",
+    "build": "pnpm -r --if-present build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "pnpm --filter @abode/extension test:e2e",
+    "e2e:manual": "pnpm --filter @abode/extension e2e:manual",
+    "dev:relay": "pnpm --filter @abode/relay dev",
+    "deploy:relay": "pnpm --filter @abode/relay deploy",
+    "test:all": "pnpm test && pnpm test:e2e",
+    "test:live": "pnpm --filter @abode/extension test:live"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@11.4.0",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.5.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.6.0",
+    "typescript-eslint": "^8.61.0"
+  }
+}

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Abode</title>
+    <style>
+      /* the popup window is an opaque rectangle chrome rounds itself, so fill it
+         edge to edge instead of faking a floating bubble */
+      html,
+      body {
+        width: 344px;
+        margin: 0;
+        overflow: hidden;
+        background: #17141b;
+      }
+      body {
+        position: relative;
+        color: #f5f1e9;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

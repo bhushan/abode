@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Abode · identity</title>
+<style>
+ :root{--ink:#17141B;--paper:#F5F1E9}
+ body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.55 ui-sans-serif,system-ui,sans-serif;padding:40px 44px;max-width:820px}
+ h1{font-size:14px;letter-spacing:.16em;text-transform:uppercase;opacity:.4;margin:0 0 30px;font-weight:600}
+ h2{font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.38;margin:34px 0 14px;font-weight:600}
+ .row{display:flex;align-items:flex-end;gap:26px;flex-wrap:wrap}
+ .cell{display:flex;flex-direction:column;align-items:center;gap:7px}
+ .cap{font-size:10px;opacity:.35}
+ .dark{background:var(--ink);padding:20px 26px;border-radius:16px}
+ .lock{display:flex;align-items:center;gap:15px;font-weight:700;letter-spacing:-.025em}
+ p{max-width:600px;font-size:13px;opacity:.6}
+</style></head><body>
+<h1>Abode · identity</h1>
+<h2>The mark</h2>
+<div class="row">
+  <div style="width:150px;height:150px" id="m1"></div>
+  <div class="dark"><div style="width:150px;height:150px" id="m2"></div></div>
+</div>
+<p>One roof over an AB ligature. The A's right leg is also the B's spine, so the two letters share a wall instead of standing side by side. The roof spans both: A and B under one roof.</p>
+<h2>App tile · actual sizes</h2>
+<div class="row">
+  <div class="cell"><img src="../apps/extension/icons/icon128.png"><div class="cap">128</div></div>
+  <div class="cell"><img src="../apps/extension/icons/icon48.png"><div class="cap">48</div></div>
+  <div class="cell"><img src="../apps/extension/icons/icon32.png"><div class="cap">32</div></div>
+  <div class="cell"><img src="../apps/extension/icons/icon16.png"><div class="cap">16</div></div>
+</div>
+<h2>Lockup</h2>
+<div class="lock" style="font-size:46px"><div style="width:60px;height:60px" id="l1"></div><span>Abode</span></div>
+<div class="lock" style="font-size:19px;margin-top:18px"><div style="width:27px;height:27px" id="l2"></div><span>Abode</span></div>
+<script>
+const MARK=(c)=>`<svg viewBox="0 0 72 72" width="100%" height="100%" fill="none" stroke="${c}"
+ stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+ <path d="M11 22 L36 6 L61 22"/><path d="M13 62 L31 26"/><path d="M31 26 V62"/><path d="M19.5 48 H31"/>
+ <path d="M31 26 H44 a9 9 0 0 1 0 18 H31"/><path d="M31 44 H46 a9 9 0 0 1 0 18 H31"/></svg>`;
+m1.innerHTML=MARK('#17141B');m2.innerHTML=MARK('#F5F1E9');
+l1.innerHTML=MARK('#17141B');l2.innerHTML=MARK('#17141B');
+</script></body></html>

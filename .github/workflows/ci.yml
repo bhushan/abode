@@ -1,0 +1,40 @@
+name: CI
+
+# Lint, typecheck and unit tests. Dispatched by hand, like every workflow here:
+# nothing in this repo runs itself.
+#
+#   gh workflow run ci.yml --ref main
+#
+# e2e stays local. It needs a headed browser with the extension loaded, and
+# extensions do not load correctly headless, so a CI run would report failures
+# that are not real.
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test

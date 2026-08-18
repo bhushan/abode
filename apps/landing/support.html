@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Support · Abode</title>
+    <meta name="description" content="Fixes for the things that usually go wrong, and where to report the ones that do not." />
+    <meta name="theme-color" content="#17141b" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="abode.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="masthead">
+        <svg viewBox="0 0 100 100" role="img" aria-label="Abode">
+          <g fill="none" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M52 14 L14 86" stroke="#1a73e8" />
+            <path d="M26 62 H52" stroke="#1a73e8" />
+            <path d="M52 14 C80 17 80 45 52 50 C86 53 86 83 52 86" stroke="#d97706" />
+          </g>
+        </svg>
+        <span class="wordmark">abode</span>
+        <nav><a href="index.html">Home</a><a href="privacy.html">Privacy</a></nav>
+      </header>
+
+      <main>
+        <section class="hero" style="padding-bottom: 40px">
+          <h1>Support</h1>
+          <p class="lede">
+            The handful of things that usually go wrong, and what to do about them.
+          </p>
+        </section>
+
+        <section>
+          <div class="points">
+            <div class="point">
+              <h3>Nothing happens when I press start</h3>
+              <p>
+                Open something with a video in it first. Abode needs a player on the page to build a
+                link around. If the page is a service Abode does not ship support for, the popup
+                will offer to turn it on for that site.
+              </p>
+            </div>
+            <div class="point">
+              <h3>I cannot find the chat</h3>
+              <p>
+                It lives in the browser's side panel. Chrome has one; some Chromium browsers, Arc
+                among them, do not, and on those Abode puts the same panel inside the page instead.
+                Either way, "Open chat" in the popup brings it up.
+              </p>
+            </div>
+            <div class="point">
+              <h3>We are in different rooms</h3>
+              <p>
+                Only one person presses start. Everybody else opens the link that person sends. If
+                two people both press start, you get two rooms with nobody else in them.
+              </p>
+            </div>
+            <div class="point">
+              <h3>Where are the play and pause buttons</h3>
+              <p>
+                There aren't any. Use the site's own player, exactly as you would alone, and the
+                room follows. Abode never puts controls on top of somebody else's player.
+              </p>
+            </div>
+            <div class="point">
+              <h3>My seeking keeps getting undone</h3>
+              <p>
+                The host has turned on host-only control, and the panel says so. Ask them to turn it
+                off, or ask them to drive.
+              </p>
+            </div>
+            <div class="point">
+              <h3>The panel says Offline</h3>
+              <p>
+                It reconnects on its own, backing off as it retries. If it stays offline, check that
+                the relay is reachable: the popup shows a warning when it is not.
+              </p>
+            </div>
+            <div class="point">
+              <h3>An episode change left me behind</h3>
+              <p>
+                The panel offers a "Catch up" button when the room moves on. It is an offer rather
+                than an automatic jump, so a stray navigation never loses your place.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h2>Something else</h2>
+          <p>
+            Open an issue. Include the browser, the site, and what you expected to happen. If it is a
+            sync problem, whether the panel said "In sync" at the time is the single most useful
+            detail.
+          </p>
+          <p>
+            <a class="cta" href="https://github.com/bhushan/abode/issues">Report an issue</a>
+          </p>
+        </section>
+      </main>
+
+      <footer>
+        <p><a href="index.html">Home</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/bhushan/abode">Source</a></p>
+      </footer>
+    </div>
+  </body>
+</html>
