@@ -7,7 +7,7 @@
     <title>Abode · Watch together, in sync</title>
     <meta
       name="description"
-      content="A browser extension that keeps two people on the same frame. Netflix, Crunchyroll and YouTube, chat and reactions, no accounts, free to run. Open source."
+      content="A browser extension that keeps two people on the same frame. Netflix, Crunchyroll and YouTube, in Chrome and Arc, chat and reactions, no accounts, free to run. Open source."
     />
     <meta name="theme-color" content="#17141b" />
     <meta name="color-scheme" content="dark" />
@@ -175,7 +175,10 @@
               <a href="https://github.com/bhushan/abode/releases">Releases</a> and unzip it, or build
               it yourself with <code>pnpm build:ext</code>.
             </li>
-            <li>Open <span class="path">chrome://extensions</span> and turn on Developer mode.</li>
+            <li>
+              Open <span class="path">chrome://extensions</span> and turn on Developer mode. In Arc
+              the same page is <span class="path">arc://extensions</span>.
+            </li>
             <li>Click <strong>Load unpacked</strong> and pick the unzipped folder.</li>
             <li>
               Open something to watch, click the Abode icon, then
@@ -184,6 +187,21 @@
           </ol>
           <p style="margin-top: 26px">
             <a class="cta" href="https://github.com/bhushan/abode">Get it on GitHub</a>
+          </p>
+        </section>
+
+        <section>
+          <h2>Chrome and Arc</h2>
+          <p>
+            Both, and they share a room happily. What differs is where the panel goes. Chrome has a
+            side panel, so the video keeps its full width. Arc has no side panel and has said it will
+            not add one, so there the panel sits inside the page itself, in a shadow root so nothing
+            on the page can reach it and nothing of ours leaks out.
+          </p>
+          <p>
+            That difference matters more than it sounds, because the panel is not decoration: the
+            room's connection lives in it. Everything downstream, chat, who is here, staying in sync,
+            works the same on both.
           </p>
         </section>
 
