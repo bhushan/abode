@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ensurePanel, PANEL_WINDOW, panelDropEndsRoom, requestPanel, restorePanel } from './panel';
+import { ensurePanel, expectPanelIn, PANEL_WINDOW, panelDropEndsRoom, requestPanel, restorePanel } from './panel';
 
 /**
  * The room's socket lives in the panel, so a browser that cannot open one cannot
@@ -185,52 +185,74 @@ describe('ensurePanel', () => {
 describe('restorePanel', () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  function stubStorage(store: Record<string, unknown>) {
-    const sendMessage = vi.fn(() => Promise.resolve(true));
-    const set = vi.fn((patch: Record<string, unknown>) => {
-      Object.assign(store, patch);
-      return Promise.resolve();
-    });
-    vi.stubGlobal('chrome', {
-      tabs: { sendMessage },
-      storage: { local: { get: (keys: string[]) => Promise.resolve(Object.fromEntries(keys.map((k) => [k, store[k]]))), set } },
-    });
-    return { sendMessage, set };
+  /** stubChrome, plus a storage that answers rather than shrugging */
+  function withRoom(over: Parameters<typeof stubChrome>[0] & { room?: Record<string, unknown> }) {
+    const stub = stubChrome(over);
+    const room = over.room ?? {};
+    const c = globalThis.chrome as unknown as { storage: { local: { get: unknown } } };
+    c.storage.local.get = (keys: string[]) =>
+      Promise.resolve(Object.fromEntries(keys.map((k) => [k, room[k]])));
+    return stub;
   }
 
-  it('puts the panel back in the tab that was hosting it', async () => {
-    const { sendMessage } = stubStorage({ ab_inRoom: true, ab_panelTabId: 7 });
+  it('opens a panel in the tab that is owed one', async () => {
+    const { sendMessage } = withRoom({ contexts: [0], inPage: true, room: { ab_inRoom: true, ab_panelTabId: 7 } });
 
-    await expect(restorePanel(7)).resolves.toBe(true);
+    await expect(restorePanel(7, nowait)).resolves.toBe(true);
     expect(sendMessage).toHaveBeenCalledWith(7, { type: 'OPEN_PANEL' });
   });
 
   it('leaves other tabs alone, or every tab would open its own panel and its own socket', async () => {
-    const { sendMessage } = stubStorage({ ab_inRoom: true, ab_panelTabId: 7 });
+    const { sendMessage } = withRoom({ contexts: [0], inPage: true, room: { ab_inRoom: true, ab_panelTabId: 7 } });
 
-    await expect(restorePanel(9)).resolves.toBe(false);
+    await expect(restorePanel(9, nowait)).resolves.toBe(false);
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
   it('does nothing once the room is over', async () => {
-    const { sendMessage } = stubStorage({ ab_inRoom: false, ab_panelTabId: 7 });
+    const { sendMessage } = withRoom({ contexts: [0], inPage: true, room: { ab_inRoom: false, ab_panelTabId: 7 } });
 
-    await expect(restorePanel(7)).resolves.toBe(false);
+    await expect(restorePanel(7, nowait)).resolves.toBe(false);
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
   it('does nothing on a browser whose panel was never in the page', async () => {
-    const { sendMessage } = stubStorage({ ab_inRoom: true });
+    const { sendMessage } = withRoom({ contexts: [0], inPage: true, room: { ab_inRoom: true } });
 
-    await expect(restorePanel(7)).resolves.toBe(false);
+    await expect(restorePanel(7, nowait)).resolves.toBe(false);
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  it('survives a content script that is not there to answer', async () => {
-    const { sendMessage } = stubStorage({ ab_inRoom: true, ab_panelTabId: 7 });
-    sendMessage.mockImplementation(() => Promise.reject(new Error('no receiving end')));
+  it('defers to a native panel rather than adding a second one', async () => {
+    const { sendMessage } = withRoom({ contexts: [1], inPage: true, room: { ab_inRoom: true, ab_panelTabId: 7 } });
 
-    await expect(restorePanel(7)).resolves.toBe(false);
+    await expect(restorePanel(7, nowait)).resolves.toBe(false);
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('falls back to a window when the page it landed on cannot host one', async () => {
+    const { create } = withRoom({ contexts: [0], inPage: false, room: { ab_inRoom: true, ab_panelTabId: 7 } });
+
+    await expect(restorePanel(7, nowait)).resolves.toBe(true);
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Following an invite is the one flow where the tab that asks for a panel is not
+ * the tab that can hold one: the landing page runs the invite bridge, not the
+ * room, so it has no way to host anything, and a moment later it is replaced by
+ * the video anyway. The tab is marked as owed a panel, and the page that lands
+ * there collects it.
+ */
+describe('expectPanelIn', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it('marks the tab so the page that lands there can claim it', async () => {
+    const { set } = stubChrome({ contexts: [0] });
+
+    await expectPanelIn(7);
+    expect(set).toHaveBeenCalledWith({ ab_panelTabId: 7 });
   });
 });
 

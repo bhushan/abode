@@ -127,16 +127,28 @@ export async function ensurePanel(tabId: number, sleep: Sleep = realSleep): Prom
  * Scoped to the one tab that was hosting it. Every tab restoring a panel would
  * mean every tab holding a socket, and one person would fill the room.
  */
-export async function restorePanel(tabId: number): Promise<boolean> {
+export async function restorePanel(tabId: number, sleep: Sleep = realSleep): Promise<boolean> {
   const d = await chrome.storage.local.get([STORAGE_KEYS.inRoom, STORAGE_KEYS.panelTabId]);
   if (!d[STORAGE_KEYS.inRoom] || d[STORAGE_KEYS.panelTabId] !== tabId) return false;
 
-  try {
-    return (await chrome.tabs.sendMessage(tabId, { type: 'OPEN_PANEL' })) === true;
-  } catch {
-    // the content script is not up yet, or not allowed on this page
-    return false;
-  }
+  // the full chain rather than a bare re-host: the browser may have a real panel
+  // by now, and adding one to the page would put two sockets in one room
+  const surface = await ensurePanel(tabId, sleep);
+  return surface !== 'sidepanel' && surface !== 'none';
+}
+
+/**
+ * Mark a tab as owed a panel by a page that cannot hold one yet.
+ *
+ * Following an invite is the one flow where the tab asking is not the tab that
+ * can answer: the landing page runs the invite bridge rather than the room, so it
+ * hosts nothing, and a moment later it is replaced by the video anyway. Opening a
+ * panel against it raced the navigation, and lost often enough to matter: the
+ * loser got a detached window, which is the worst of the three surfaces and the
+ * wrong one. The video page claims it instead, once it is there to claim it.
+ */
+export async function expectPanelIn(tabId: number): Promise<void> {
+  await chrome.storage.local.set({ [STORAGE_KEYS.panelTabId]: tabId }).catch(() => undefined);
 }
 
 /**

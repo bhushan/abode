@@ -1,5 +1,5 @@
 import { STORAGE_KEYS, isValidCode } from '@/lib/room';
-import { ensurePanel, panelDropEndsRoom, restorePanel, tryNativePanel } from '@/lib/panel';
+import { ensurePanel, expectPanelIn, panelDropEndsRoom, restorePanel, tryNativePanel } from '@/lib/panel';
 import { PANEL_PORT_NAME } from '@/lib/panelPort';
 import { createPanelRegistry } from './panel-registry';
 import { chromeSiteAccess, syncSiteAccess } from './site-access';
@@ -84,12 +84,14 @@ chrome.runtime.onMessage.addListener((msg: PopupMessage | ContentMessage, sender
     } catch {
       url = null;
     }
-    // Native attempt first, while the click's user gesture is still valid: any
-    // await in front of it spends the gesture and open() rejects. Then the same
-    // check every other caller gets, inline rather than by message, because a
-    // worker does not receive its own runtime.sendMessage.
+    // Native attempt first, while the click's user gesture is still valid: the
+    // click happened in the page and was forwarded straight here, so the
+    // activation is still live, and any await in front of it would spend it.
     tryNativePanel(tabId);
-    void ensurePanel(tabId);
+    // The rest waits for the video. This tab is about to be navigated away from a
+    // landing page that runs the invite bridge and can host nothing, so ensuring a
+    // panel against it raced the navigation; the page that lands claims it.
+    void expectPanelIn(tabId);
     joinInvite(tabId, msg.code, url);
     return;
   }

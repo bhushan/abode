@@ -54,7 +54,7 @@ export default defineManifest(({ mode }) => {
     name: 'Abode: Watch Together in Sync',
     short_name: 'Abode',
     description: 'One room for two places. Watch anything together, perfectly in sync, with chat and reactions.',
-    version: '0.6.0',
+    version: '0.6.1',
     icons,
     action: {
       default_popup: 'src/popup/index.html',
