@@ -7,7 +7,7 @@
     <title>Abode · Watch together, in sync</title>
     <meta
       name="description"
-      content="A browser extension that keeps two people on the same frame. Netflix, Crunchyroll and YouTube, in Chrome and Arc, chat and reactions, no accounts, free to run. Open source."
+      content="A Chrome extension that keeps two people on the same frame. Netflix, Crunchyroll and YouTube, chat and reactions, no accounts, free to run. Open source."
     />
     <meta name="theme-color" content="#17141b" />
     <meta name="color-scheme" content="dark" />
@@ -176,8 +176,7 @@
               it yourself with <code>pnpm build:ext</code>.
             </li>
             <li>
-              Open <span class="path">chrome://extensions</span> and turn on Developer mode. In Arc
-              the same page is <span class="path">arc://extensions</span>.
+              Open <span class="path">chrome://extensions</span> and turn on Developer mode.
             </li>
             <li>Click <strong>Load unpacked</strong> and pick the unzipped folder.</li>
             <li>
@@ -191,17 +190,17 @@
         </section>
 
         <section>
-          <h2>Chrome and Arc</h2>
+          <h2>Which browser</h2>
           <p>
-            Both, and they share a room happily. What differs is where the panel goes. Chrome has a
-            side panel, so the video keeps its full width. Arc has no side panel and has said it will
-            not add one, so there the panel sits inside the page itself, in a shadow root so nothing
-            on the page can reach it and nothing of ours leaks out.
+            Chrome. That is what Abode is built and tested on, and the only browser it is honest to
+            promise. Chat lives in Chrome's side panel, so the video keeps its full width.
           </p>
           <p>
-            That difference matters more than it sounds, because the panel is not decoration: the
-            room's connection lives in it. Everything downstream, chat, who is here, staying in sync,
-            works the same on both.
+            Other Chromium browsers may work. Nothing in Abode is Chrome-specific, and where a
+            browser has no side panel the same chat is placed inside the page instead. That path is
+            built and tested, but browsers that fork or skin Chromium differ in ways testing here
+            cannot catch, so treat it as a maybe rather than a promise. If Abode misbehaves
+            somewhere else, Chrome is the answer.
           </p>
         </section>
 

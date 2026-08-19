@@ -11,15 +11,17 @@
   <body>
     <!-- no CSP here on purpose, so the content-script sync socket can connect freely.
          webm/vp8 plays in both real Chrome and Playwright's chromium (which ships no
-         h264). if the network is blocked we fall back to a synthetic canvas stream so
-         the harness still runs fully offline. -->
-    <video id="v" controls playsinline src="https://media.w3.org/2010/05/sintel/trailer.webm"></video>
+         h264). the clip is served from this origin by serve.mjs, which caches it once,
+         so seeking does not race a network fetch. the canvas fallback below only runs
+         when there is no clip at all, and it CANNOT seek: __wbSynthetic says so, and a
+         test that needs to seek should treat it as a failure rather than a result. -->
+    <video id="v" controls playsinline src="/clip.webm"></video>
     <script>
       const v = document.getElementById('v');
       const markReady = () => { window.__wbVideoReady = true; };
       v.addEventListener('loadeddata', markReady, { once: true });
       v.addEventListener('error', fallback, { once: true });
-      setTimeout(() => { if (!window.__wbVideoReady && v.readyState < 2) fallback(); }, 4000);
+      setTimeout(() => { if (!window.__wbVideoReady && v.readyState < 2) fallback(); }, 8000);
 
       function fallback() {
         if (v.srcObject) return;
@@ -35,6 +37,7 @@
         }, 80);
         v.removeAttribute('src');
         v.srcObject = c.captureStream(12);
+        window.__wbSynthetic = true; // no seeking past this point
         markReady();
       }
     </script>

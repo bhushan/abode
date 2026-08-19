@@ -10,15 +10,15 @@ import { launchUser, type User } from './fixtures';
  * the popup, and the popup was the problem: it called for a panel and then closed
  * itself, so every fallback ran inside a document being torn down. Chrome never
  * noticed, because its own panel is opened by the browser process and finishes
- * regardless. Arc, which has no working side panel, was left with no panel and
+ * regardless. A browser with no working side panel was left with no panel and
  * therefore no socket at all.
  *
  * One thing is simulated in each, and only one: whether the browser has a side
  * panel that works. Automation cannot open Chrome's real one (it needs user
- * activation, and a synthetic click carries none) and Arc cannot be automated at
- * all: it permits a single instance, ignores --remote-debugging-port, and quits
- * when handed an automation profile. Everything else here is the real popup, the
- * real service worker, and the real content script.
+ * activation, and a synthetic click carries none), and the browsers that lack one
+ * often cannot be driven by automation at all. So the condition is reproduced
+ * here rather than the browser. Everything else is the real popup, the real
+ * service worker, and the real content script.
  */
 
 const PANEL_HOST_ID = 'ab-panel-host';
@@ -29,7 +29,7 @@ async function openPopup(u: User, opts: { deadSidePanel?: boolean } = {}): Promi
   );
   const page = await u.context.newPage();
   if (opts.deadSidePanel) {
-    // Arc, exactly: the namespace is present, the call resolves, no window appears
+    // the awkward case: the namespace is present, the call resolves, no window appears
     await page.addInitScript(() => {
       const panel = (globalThis as { chrome?: { sidePanel?: { open?: unknown } } }).chrome?.sidePanel;
       if (panel) panel.open = () => Promise.resolve();
@@ -58,7 +58,7 @@ const inRoom = (u: User) =>
 const inPagePanels = (u: User) =>
   u.video.evaluate((id) => document.querySelectorAll(`#${id}`).length, PANEL_HOST_ID);
 
-test('arc: the panel arrives even though the browser opened nothing and the popup died', async () => {
+test('no side panel: the panel arrives even though the browser opened nothing and the popup died', async () => {
   let u: User | undefined;
   try {
     u = await launchUser();
@@ -105,7 +105,7 @@ test('chrome: a working side panel is left alone, with no second panel in the pa
   }
 });
 
-test('arc: the panel comes back after the page navigates out from under it', async () => {
+test('no side panel: the panel comes back after the page navigates out from under it', async () => {
   let u: User | undefined;
   try {
     u = await launchUser();

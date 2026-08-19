@@ -28,7 +28,7 @@ test('play/pause syncs through the deployed relay', async () => {
 });
 
 /**
- * The Arc surface, in the production build, against the deployed relay.
+ * The in-page panel, in the production build, against the deployed relay.
  *
  * The panel is where the room's socket lives, and on a browser without a side
  * panel that panel is an iframe inside somebody's page. Everything about that is

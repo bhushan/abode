@@ -46,7 +46,7 @@ export function requestPanel(tabId: number): Promise<void> {
  * Did a panel document actually come up?
  *
  * `sidePanel.open()` resolving is a promise about the call, not about the window:
- * Arc ships the API, resolves, and paints nothing. A SIDE_PANEL context is the
+ * some browsers ship the API, resolve, and paint nothing. A SIDE_PANEL context is the
  * browser admitting a document exists, which is the thing we actually need.
  *
  * Answering yes when it is unknowable is deliberate. A false no puts a second
@@ -88,9 +88,9 @@ export async function ensurePanel(tabId: number, sleep: Sleep = realSleep): Prom
     return 'sidepanel';
   }
 
-  // Arc either ships no side panel or ships one that opens nothing, and has said
-  // it will not add the API. An extension iframe is the honest answer: it is an
-  // extension document, so the relay socket behaves as it does in a real panel.
+  // A Chromium browser with no side panel, or one that opens nothing when asked.
+  // An extension iframe is the honest answer: it is an extension document, so the
+  // relay socket behaves exactly as it does in a real panel.
   try {
     const hosted: unknown = await chrome.tabs.sendMessage(tabId, { type: 'OPEN_PANEL' });
     if (hosted === true) {
