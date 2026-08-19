@@ -54,13 +54,10 @@ Notes worth keeping when something fails:
   others do not have: an ad break replaces the `<video>` on one person's screen
   and not the other's, so a room can drift by the length of the break and settle
   again after it. Check a video with a mid-roll before calling a drift a bug.
-- **Both browsers**, at least once per release. Chrome puts the panel in its own
-  side panel; Arc has none and gets one inside the page. Run the whole column in
-  Arc too, and pay attention to the two things only Arc can show you: the panel
-  coming back after you click through to the next episode, and it still painting
-  in fullscreen. Arc cannot be automated (one instance, no
-  `--remote-debugging-port`, quits on an automation profile), so this row is the
-  only place its real behaviour is ever observed.
+- **Chrome is the browser this list is run in.** It is what Abode is supported on.
+  The in-page panel path exists for Chromium browsers without a working side
+  panel, and it is covered by tests, but it is not a support claim and does not
+  need a column here.
 - **Plain HTML5** is the fallback adapter, and the only one that needs the
   optional site permission granted first.
 

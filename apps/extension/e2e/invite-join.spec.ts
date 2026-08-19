@@ -75,12 +75,12 @@ test('chrome: an invite joins the room, lands on the video, and opens the browse
   }
 });
 
-test('arc: an invite joins the room and the video page gets the panel instead', async () => {
+test('no side panel: an invite joins the room and the video page gets the panel instead', async () => {
   let u: User | undefined;
   try {
     u = await launchUser();
-    // Arc, in the one place this flow touches it: the worker is what calls
-    // sidePanel.open here, so that is where the API has to answer and do nothing
+    // the worker is what calls sidePanel.open on this path, so that is where the
+    // API has to answer and open nothing
     await u.worker.evaluate(() => {
       chrome.sidePanel.open = () => Promise.resolve();
     });

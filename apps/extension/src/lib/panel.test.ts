@@ -4,8 +4,8 @@ import { ensurePanel, expectPanelIn, PANEL_WINDOW, panelDropEndsRoom, requestPan
 /**
  * The room's socket lives in the panel, so a browser that cannot open one cannot
  * sync at all. Chrome's side panel is the right home for it (the video keeps its
- * full width), but Arc's either does not exist or opens nothing, so there the
- * panel has to go into the page itself.
+ * full width). A Chromium browser whose side panel does not exist, or answers and
+ * opens nothing, has to be given one inside the page instead.
  *
  * The split these assert is the whole fix: the popup may only do what a dying
  * document can finish, which is the synchronous native attempt, and everything
@@ -57,8 +57,9 @@ describe('requestPanel', () => {
 
   /**
    * The bug this exists for: the popup calls this and closes itself immediately,
-   * so anything awaited here dies unfinished. On Arc that was every path that
-   * could have worked, and the room came up with no panel and no socket.
+   * so anything awaited here dies unfinished. Without a working side panel that
+   * was every path that could have worked, and the room came up with no panel and
+   * no socket.
    */
   it('does its whole job before returning, because the popup is about to close', () => {
     const open = vi.fn<OpenFn>(() => Promise.resolve());
@@ -116,7 +117,7 @@ describe('ensurePanel', () => {
     expect(sendMessage).not.toHaveBeenCalled();
   });
 
-  /** Arc: the API answers, the window never arrives. */
+  /** The API answers, the window never arrives. */
   it('puts the panel in the page when no panel document ever turns up', async () => {
     const { sendMessage, create } = stubChrome({ contexts: [0], inPage: true });
 

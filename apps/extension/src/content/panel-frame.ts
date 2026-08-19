@@ -1,10 +1,11 @@
 /**
  * The room panel, hosted inside the page.
  *
- * Arc ships without `chrome.sidePanel` and has said it will not add it, so on those
- * browsers there is no native surface to put chat in. An extension iframe is the
- * cheapest honest answer: it is an extension document, so it keeps full `chrome.*`
- * access and the relay socket behaves exactly as it does in a real side panel.
+ * Chrome has a side panel and that is where chat belongs. Some Chromium browsers
+ * ship no `chrome.sidePanel` at all, or one that answers and opens nothing, and
+ * there is no native surface to put chat in. An extension iframe is the cheapest
+ * honest answer: it is an extension document, so it keeps full `chrome.*` access
+ * and the relay socket behaves exactly as it does in a real side panel.
  * `SidePanel.tsx` does not know the difference.
  *
  * It lives in a shadow root so the host site's stylesheet cannot reach it, and so

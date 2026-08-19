@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import { launchUser, VIDEO_URL, type User } from './fixtures';
 
 /**
- * Arc ships without `chrome.sidePanel` and has said it will not add it, so on those
- * browsers the panel is hosted inside the page instead. This is the half that only
+ * A Chromium browser with no `chrome.sidePanel`, or one that answers and opens
+ * nothing, gets the panel hosted inside the page instead. This is the half that only
  * a real browser can prove: that the page is allowed to frame an extension page at
  * all (web_accessible_resources), and that the panel app actually boots in there.
  * A fake DOM would happily "pass" with the manifest entry missing.
